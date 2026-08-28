@@ -189,15 +189,19 @@ def train_30day_world_model():
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=0)
 
     # Modell initialisieren
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+
     if args.use_moe:
-        print("  - Modell-Architektur: 1.2B Sparse Mixture of Experts (Top-2 Gating / 8 SwiGLU Experts)", flush=True)
+        print("  - Modell-Architektur: 1.2B Sparse Mixture of Experts (BFloat16 / Top-2 Gating / 8 SwiGLU Experts)", flush=True)
         model = MultiGranularMoE1B2Model(
             vocab_size=vocab.size,
             rank=64,
-            d_model=1024,
-            n_layers=16,
+            d_model=768,
+            n_layers=12,
             num_experts=8,
-        ).to(device)
+            hidden_dim=1536,
+            max_seq_len=256,
+        ).to(device=device, dtype=torch.bfloat16)
     else:
         print("  - Modell-Architektur: Nemotron 300M Dense (SwiGLU + GQA + RoPE)", flush=True)
         model = NemotronBitstreamLM(
@@ -208,14 +212,13 @@ def train_30day_world_model():
             n_heads=12,
             n_kv_heads=4,
             use_gradient_checkpointing=True,
-        ).to(device)
+        ).to(device=device, dtype=torch.bfloat16)
 
     total_params = sum(p.numel() for p in model.parameters())
     print(f"  - Gesamte Parameter:  {total_params:,}", flush=True)
 
     # Optimizer mit GaLore Low-Rank
     optimizer = GaLoreAdamW(model.parameters(), lr=args.lr_max, weight_decay=0.01, rank=32)
-    scaler = torch.amp.GradScaler("cuda", enabled=(device.type == "cuda"))
 
     # Auto-Resume von Checkpoint falls vorhanden
     latest_checkpoint = os.path.join(args.checkpoint_dir, "checkpoint_latest.pt")
@@ -229,7 +232,7 @@ def train_30day_world_model():
         print(f"✅ Fortsetzung ab Step {start_step:,}!", flush=True)
 
     # Byte weights
-    byte_weights = torch.ones(vocab.size, dtype=torch.float32, device=device)
+    byte_weights = torch.ones(vocab.size, dtype=torch.bfloat16, device=device)
     for t_id in range(vocab.size):
         byte_weights[t_id] = float(max(1, vocab.get_byte_len(t_id)))
 
@@ -259,30 +262,27 @@ def train_30day_world_model():
         x_batch = x_batch.to(device, non_blocking=True)
         y_batch = y_batch.to(device, non_blocking=True)
 
-        with torch.amp.autocast("cuda", enabled=(device.type == "cuda")):
-            if args.use_moe:
-                logits, aux_loss = model(x_batch)
-            else:
-                logits = model(x_batch)
-                aux_loss = 0.0
+        if args.use_moe:
+            logits, aux_loss = model(x_batch)
+        else:
+            logits = model(x_batch)
+            aux_loss = 0.0
 
-            flat_logits = logits.view(-1, vocab.size)
-            flat_targets = y_batch.view(-1)
+        flat_logits = logits.view(-1, vocab.size)
+        flat_targets = y_batch.view(-1)
 
-            weights = byte_weights[flat_targets]
-            loss_unreduced = F.cross_entropy(flat_logits, flat_targets, reduction="none")
-            ce_loss = torch.sum(loss_unreduced * weights) / torch.sum(weights)
-            loss = (ce_loss + 0.01 * aux_loss) / args.gradient_accumulation_steps
+        weights = byte_weights[flat_targets]
+        loss_unreduced = F.cross_entropy(flat_logits, flat_targets, reduction="none")
+        ce_loss = torch.sum(loss_unreduced * weights) / torch.sum(weights)
+        loss = (ce_loss + 0.01 * aux_loss) / args.gradient_accumulation_steps
 
-        scaler.scale(loss).backward()
+        loss.backward()
         accum_loss += ce_loss.item() / args.gradient_accumulation_steps
 
         # Gradient Accumulation Step
         if (step + 1) % args.gradient_accumulation_steps == 0:
-            scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-            scaler.step(optimizer)
-            scaler.update()
+            optimizer.step()
             optimizer.zero_grad()
 
             loss_val = accum_loss
@@ -297,19 +297,20 @@ def train_30day_world_model():
 
         step += 1
 
-        # Hardware Heat Safety Check alle 500 Steps
-        if step % 500 == 0:
+        # Hardware Heat Safety Check alle 200 Steps
+        if step % 200 == 0:
             temp = get_gpu_temperature()
             if temp > 78:
                 print(f"⚠️ GPU-Temperatur {temp}°C erreicht! Kühle kurz ab...", flush=True)
                 time.sleep(2.0)
 
-        # Dashboard & Status Update alle 50 Steps
-        if step % 50 == 0:
+        # Dashboard & Status Update alle 5 Steps
+        if step % 5 == 0:
             elapsed = time.time() - start_time
             tokens_processed = step * args.batch_size * 128
             tps = tokens_processed / max(0.1, elapsed)
             day_fraction = (elapsed / (24 * 3600))
+            loss_val = loss_history[-1] if loss_history else float(ce_loss.item())
 
             update_30day_dashboard_telemetry(
                 status_file=status_file,
@@ -317,13 +318,17 @@ def train_30day_world_model():
                 total_days=args.days,
                 step=step,
                 total_steps=total_steps,
-                current_loss=loss_history[-1] if loss_history else 5.0,
+                current_loss=loss_val,
                 loss_history=loss_history,
                 tokens_processed=tokens_processed,
                 tokens_per_sec=tps,
                 shards_count=len(dataset.shard_files),
                 current_lr=current_lr if 'current_lr' in locals() else args.lr_max,
             )
+
+        if step % 10 == 0:
+            loss_val = loss_history[-1] if loss_history else float(ce_loss.item())
+            print(f"  [30-Tage MoE · Step {step:06d}] Loss: {loss_val:.4f} | TPS: {int(tps if 'tps' in locals() else 0)} | GPU Temp: {get_gpu_temperature()}°C", flush=True)
 
         # Checkpointing alle 3600 Sekunden (jede Stunde)
         if step % 2000 == 0:
