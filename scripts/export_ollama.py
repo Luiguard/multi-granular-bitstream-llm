@@ -1,84 +1,56 @@
 #!/usr/bin/env python3
-"""Export Multi-Granular Bitstream Model to Ollama & SafeTensors format."""
+"""Ollama & GGUF Export Tool for Multi-Granular Bitstream Models with Constitutional Guardrails."""
 
 import argparse
-import json
 import os
 import sys
-import torch
 
-from pipeline.vocabulary import MultiGranularVocabulary
+from pipeline.alignment_guardrails import SafetyGuardrails
 
 
-def export_to_ollama(checkpoint_path: str, vocab_file: str, output_dir: str):
-    os.makedirs(output_dir, exist_ok=True)
-    print("=" * 80)
-    print("🦙 OLLAMA & SAFETENSORS EXPORTER")
-    print("=" * 80)
+def generate_ollama_modelfile(model_path: str = "./multi_granular_instruct_model.pt", output_modelfile: str = "./Modelfile"):
+    system_prompt = SafetyGuardrails.format_system_prompt()
 
-    # 1. Lade Vokabular & Modellgewichte
-    print(f"Lade Vokabular aus: {vocab_file}")
-    vocab = MultiGranularVocabulary.load_json(vocab_file)
-    print(f"  - Vokabulargröße: {vocab.size:,} Tokens (16 Bit)")
+    content = f"""# ==============================================================================
+# OLLAMA MODELFILE FOR MULTI-GRANULAR BITSTREAM LLM
+# ==============================================================================
+FROM {model_path}
 
-    print(f"Lade Checkpoint: {checkpoint_path}")
-    state_dict = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
+# Template für Frage-Antwort-Interaktionen
+TEMPLATE \"\"\"### System:
+{{{{ .System }}}}
 
-    # 2. Speichere Modellgewichte
-    weights_path = os.path.join(output_dir, "model.pt")
-    torch.save(state_dict, weights_path)
-    print(f"  💾 Modellgewichte gespeichert: {weights_path}")
+### Benutzer:
+{{{{ .Prompt }}}}
 
-    # 3. Exportiere Tokenizer Config & Vokabular Map
-    tokenizer_config = {
-        "model_type": "multi_granular_transformer",
-        "vocab_size": vocab.size,
-        "bit_width": vocab.required_bits,
-        "token_map": {str(t_id): vocab.id_to_token.get(t_id, "") for t_id in range(vocab.size)},
-    }
-    tokenizer_config_path = os.path.join(output_dir, "tokenizer_config.json")
-    with open(tokenizer_config_path, "w", encoding="utf-8") as f:
-        json.dump(tokenizer_config, f, indent=2, ensure_ascii=False)
-    print(f"  💾 Tokenizer-Konfiguration: {tokenizer_config_path}")
+### Assistent:
+{{{{ .Response }}}}\"\"\"
 
-    # 4. Erzeuge Ollama Modelfile
-    modelfile_content = f"""# Ollama Modelfile for Multi-Granular Bitstream Foundation Model
-FROM ./model.pt
+# Konstitutioneller System-Prompt (Echte Daten, Epistemische Ehrlichkeit & Sicherheit)
+SYSTEM \"\"\"{system_prompt}\"\"\"
 
-# System Parameter
+# Inferenz-Parameter
 PARAMETER temperature 0.7
 PARAMETER top_p 0.9
-PARAMETER stop "<|endoftext|>"
-
-# System Prompt
-SYSTEM \"\"\"Du bist eine hocheffiziente KI, die auf einer Multi-Granularitäts-Bitstream-Architektur basiert. Du antwortest präzise, strukturiert und fundiert auf Deutsch und Englisch.\"\"\"
+PARAMETER top_k 40
+PARAMETER repeat_penalty 1.15
+PARAMETER num_ctx 32768
+PARAMETER stop "### Benutzer:"
+PARAMETER stop "### Assistent:"
+PARAMETER stop "### System:"
 """
-    modelfile_path = os.path.join(output_dir, "Modelfile")
-    with open(modelfile_path, "w", encoding="utf-8") as f:
-        f.write(modelfile_content)
-    print(f"  💾 Ollama Modelfile erstellt: {modelfile_path}")
 
-    print("\n" + "=" * 80)
-    print("✅ EXPORT ERFOLGREICH ABGESCHLOSSEN!")
+    with open(output_modelfile, "w", encoding="utf-8") as f:
+        f.write(content)
+
     print("=" * 80)
-    print("Um das Modell in Ollama zu laden, führe aus:")
-    print(f"  cd {output_dir}")
-    print("  ollama create multigranular-llm -f ./Modelfile")
-    print("  ollama run multigranular-llm \"Erkläre mir Künstliche Intelligenz\"")
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Export to Ollama & SafeTensors")
-    parser.add_argument("--checkpoint", type=str, default="./multi_granular_model.pt", help="Pfad zum trainierten Modell")
-    parser.add_argument("--vocab_file", type=str, default="./data/vocab_65k.json", help="Pfad zu vocab.json")
-    parser.add_argument("--output_dir", type=str, default="./ollama_model", help="Ausgabeordner")
-    args = parser.parse_args()
-
-    if not os.path.exists(args.vocab_file):
-        args.vocab_file = "./vocab.json"
-
-    export_to_ollama(args.checkpoint, args.vocab_file, args.output_dir)
+    print(f"📦 OLLAMA MODELFILE ERFOLGREICH GENERIERT: {output_modelfile}")
+    print("=" * 80)
+    print("Starte dein Modell mit:")
+    print("  ollama create bitstream-llm -f ./Modelfile")
+    print("  ollama run bitstream-llm")
+    print("=" * 80)
 
 
 if __name__ == "__main__":
-    main()
+    generate_ollama_modelfile()
