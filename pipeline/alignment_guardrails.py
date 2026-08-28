@@ -11,8 +11,8 @@ from typing import Tuple, List
 
 # Banned dangerous intents
 BLOCKED_PATTERNS = [
-    r"\b(create|write|generate)\s+(malware|ransomware|keylogger|rootkit|ddos\s+attack|exploit\s+payload)\b",
-    r"\b(how\s+to\s+make|synthesize)\s+(explosives|weapons|nerve\s+agent)\b",
+    r"\b(create|write|generate|build|code|make)\b(?:\s+\w+){0,3}\s+\b(malware|ransomware|keylogger|rootkit|ddos|exploit|virus)\b",
+    r"\b(how\s+to\s+make|synthesize|build)\b(?:\s+\w+){0,3}\s+\b(explosives|weapons|nerve\s+agent|bomb)\b",
 ]
 
 # Epistemic Honesty Principles

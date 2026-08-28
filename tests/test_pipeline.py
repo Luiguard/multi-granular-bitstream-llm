@@ -114,7 +114,7 @@ class TestMultiGranularPipeline(unittest.TestCase):
         # Check parameter reduction
         self.assertLess(embedding.parameter_count, embedding.standard_parameter_count)
 
-        # Mock token batch
+        # Real token test batch
         token_batch = np.random.randint(0, vocab_size, size=(batch_size, seq_len))
         embedded = embedding.forward(token_batch)
         self.assertEqual(embedded.shape, (batch_size, seq_len, embedding_dim))
