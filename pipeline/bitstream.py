@@ -9,12 +9,11 @@ import numpy as np
 class BitstreamHeader:
     magic: bytes          # 4 bytes: b"MGBS"
     version: int          # uint16 (e.g. 1)
-    bit_width: int        # uint8 (e.g. 16 or 18 bits per token)
+    bit_width: int        # uint8 (e.g. 16 bits per token)
     vocab_size: int       # uint32
     token_count: int      # uint64
     raw_byte_count: int   # uint64
 
-    HEADER_STRUCT = struct.Struct("<4sHBIIQ")  # format: 4s (magic), H (uint16), B (uint8), I (uint32), I (reserved), Q (token_count)
     EXT_STRUCT = struct.Struct("<4sHBIIQQ")    # 4s (4), H (2), B (1), I (4), I (4), Q (8), Q (8) = 31 bytes
     HEADER_SIZE = EXT_STRUCT.size
 
@@ -54,7 +53,15 @@ class BitstreamEncoder:
         self.bit_width = bit_width if bit_width is not None else max(1, math.ceil(math.log2(max(2, vocab_size))))
 
     def pack_tokens(self, token_ids: List[int]) -> bytearray:
-        """Packs a list of token IDs into a compact bytearray using exact bit packing."""
+        """Packs token IDs with fast native vectorized path for 16-bit and 8-bit."""
+        if self.bit_width == 16:
+            arr = np.array(token_ids, dtype=np.uint16)
+            return bytearray(arr.tobytes())
+        elif self.bit_width == 8:
+            arr = np.array(token_ids, dtype=np.uint8)
+            return bytearray(arr.tobytes())
+
+        # General bit-packing for arbitrary bit widths
         bit_buffer = 0
         bits_in_buffer = 0
         packed_bytes = bytearray()
@@ -63,17 +70,14 @@ class BitstreamEncoder:
         for t_id in token_ids:
             if t_id >= self.vocab_size:
                 raise ValueError(f"Token ID {t_id} exceeds vocabulary size {self.vocab_size}")
-            # Insert k bits into buffer
             bit_buffer = (bit_buffer << self.bit_width) | (t_id & bit_mask)
             bits_in_buffer += self.bit_width
 
-            # Flush complete 8-bit bytes
             while bits_in_buffer >= 8:
                 bits_in_buffer -= 8
                 byte_val = (bit_buffer >> bits_in_buffer) & 0xFF
                 packed_bytes.append(byte_val)
 
-        # Flush remaining partial byte if any
         if bits_in_buffer > 0:
             byte_val = (bit_buffer << (8 - bits_in_buffer)) & 0xFF
             packed_bytes.append(byte_val)
@@ -100,11 +104,21 @@ class BitstreamEncoder:
 
 
 class BitstreamDecoder:
-    """Decodes packed binary bitstreams back into token IDs."""
+    """Decodes packed binary bitstreams back into token IDs with C-speed NumPy decoding."""
 
     @staticmethod
     def unpack_tokens(packed_bytes: bytes, token_count: int, bit_width: int) -> List[int]:
-        """Unpacks packed bytes into integer token IDs."""
+        """Unpacks packed bytes into integer token IDs instantly."""
+        if bit_width == 16:
+            # Fast vectorized C-level decode
+            expected_bytes = token_count * 2
+            arr = np.frombuffer(packed_bytes[:expected_bytes], dtype=np.uint16)
+            return arr.tolist()
+        elif bit_width == 8:
+            arr = np.frombuffer(packed_bytes[:token_count], dtype=np.uint8)
+            return arr.tolist()
+
+        # General bit-unpacking
         bit_buffer = 0
         bits_in_buffer = 0
         token_ids: List[int] = []
@@ -112,7 +126,6 @@ class BitstreamDecoder:
         byte_iter = iter(packed_bytes)
 
         while len(token_ids) < token_count:
-            # Pull bytes into buffer until we have enough bits
             while bits_in_buffer < bit_width:
                 try:
                     b = next(byte_iter)
