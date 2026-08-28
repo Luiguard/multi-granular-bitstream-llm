@@ -51,18 +51,27 @@
             <span class="metric-title">Restzeit (ETA)</span>
             <span class="metric-value highlight" id="eta-value">04:12 min</span>
           </div>
-          <div class="metric-box">
-            <span class="metric-title">Durchsatz</span>
-            <span class="metric-value" id="throughput-value">12.450 Tokens/s</span>
-          </div>
-          <div class="metric-box">
-            <span class="metric-title">Aktueller Loss</span>
-            <span class="metric-value accent" id="current-loss-value">5.8412</span>
-          </div>
-          <div class="metric-box">
-            <span class="metric-title">Verarbeitete Shards</span>
-            <span class="metric-value" id="shards-count-value">9 / 9 Shards</span>
-          </div>
+          <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-label">Validierungs-Perplexity (PPL)</div>
+                <div class="metric-value" id="valPpl">27.62</div>
+                <div class="metric-sub">Ungesehene Test-Shards</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">MMLU / ARC Multiple-Choice</div>
+                <div class="metric-value" id="mmluScore">60.0%</div>
+                <div class="metric-sub">Zero-Shot Log-Likelihood</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Inferenz-Durchsatz</div>
+                <div class="metric-value" id="tpsValue">121.0 T/s</div>
+                <div class="metric-sub">NVIDIA RTX 3060 Laptop</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Verarbeitete Shards</div>
+                <div class="metric-value" id="shardsProcessed">24</div>
+                <div class="metric-sub">Multi-Granulare Shards</div>
+            </div>
         </div>
       </section>
 

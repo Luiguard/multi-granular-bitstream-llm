@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PyTorch Causal Transformer Training on Sharded Multi-Granular Bitstreams with Live Dynamic Status."""
+"""Fast-Track Multi-Granular Bitstream Trainer for 15-Minute Preview."""
 
 import glob
 import json
@@ -125,7 +125,6 @@ def update_live_status(
     elapsed_time: float,
     shards_count: int,
 ):
-    """Writes dynamic live telemetry and metrics to JSON file for the Web Dashboard."""
     progress_pct = (step / max(1, total_steps)) * 100.0
     remaining_steps = max(0, total_steps - step)
     seconds_per_step = elapsed_time / max(1, step)
@@ -157,9 +156,9 @@ def update_live_status(
         pass
 
 
-def train_model():
+def train_fast_track_preview():
     print("=" * 80, flush=True)
-    print("🧠 MULTI-GRANULARER BITSTREAM TRAINER (LIVE STATUS SYNCHRONISATION)", flush=True)
+    print("⚡ MULTI-GRANULARER VORGESCHMACK-TRAINER (15 MINUTEN ZIELZEIT)", flush=True)
     print("=" * 80, flush=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -167,13 +166,13 @@ def train_model():
 
     vocab_file = "/home/benjamin/Bilder/data/vocab_65k.json"
     if not os.path.exists(vocab_file):
-        vocab_file = "/home/benjamin/Bilder/data/vocab_4096.json"
+        vocab_file = "/home/benjamin/Bilder/vocab.json"
 
     vocab = MultiGranularVocabulary.load_json(vocab_file)
     print(f"  - Vokabulargröße |V|: {vocab.size:,} Tokens (16 Bit)", flush=True)
 
     status_file = "/home/benjamin/Bilder/data/training_status.json"
-    shard_files = glob.glob("/home/benjamin/Bilder/data/shards/*.mgbs")
+    shard_files = sorted(glob.glob("/home/benjamin/Bilder/data/shards/*.mgbs"))
     if not shard_files:
         shard_files = ["/home/benjamin/Bilder/wiki_ki_article.mgbs"]
 
@@ -183,11 +182,10 @@ def train_model():
     d_model = 512
     n_layers = 6
     n_heads = 8
-    epochs = 10
+    target_steps = 15000  # Exakt 15.000 Schritte für ~15 Minuten Laufzeit!
 
     dataset = ShardedBitstreamDataset(shard_files, seq_len=seq_len)
-    total_steps = (len(dataset) // batch_size) * epochs
-    print(f"  - Geladene Samples: {len(dataset):,}, Steps gesamt: {total_steps:,}", flush=True)
+    print(f"  - Geladene Samples: {len(dataset):,}, Ziel-Schritte: {target_steps:,}", flush=True)
 
     dataloader = torch.utils.data.DataLoader(
         dataset,
@@ -209,7 +207,7 @@ def train_model():
     total_params = sum(p.numel() for p in model.parameters())
     print(f"  - Modell-Parameter: {total_params:,} Parameter", flush=True)
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4, weight_decay=0.01)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=4e-4, weight_decay=0.01)
     scaler = torch.amp.GradScaler("cuda", enabled=(device.type == "cuda"))
 
     byte_weights = torch.ones(vocab.size, dtype=torch.float32, device=device)
@@ -221,72 +219,77 @@ def train_model():
     start_time = time.time()
     loss_history: List[float] = []
 
-    print("\n🚀 Starte aktives GPU-Training mit Live-Telemetrie...", flush=True)
+    print("\n🚀 Starte 15-Minuten Fast-Track Training...", flush=True)
+    data_iter = iter(dataloader)
 
-    for epoch in range(1, epochs + 1):
-        for x_batch, y_batch in dataloader:
-            x_batch = x_batch.to(device, non_blocking=True)
-            y_batch = y_batch.to(device, non_blocking=True)
+    while step < target_steps:
+        try:
+            x_batch, y_batch = next(data_iter)
+        except StopIteration:
+            data_iter = iter(dataloader)
+            x_batch, y_batch = next(data_iter)
 
-            optimizer.zero_grad()
+        x_batch = x_batch.to(device, non_blocking=True)
+        y_batch = y_batch.to(device, non_blocking=True)
 
-            with torch.amp.autocast("cuda", enabled=(device.type == "cuda")):
-                logits = model(x_batch)
-                flat_logits = logits.view(-1, vocab.size)
-                flat_targets = y_batch.view(-1)
+        optimizer.zero_grad()
 
-                token_weights = byte_weights[flat_targets]
-                loss_unreduced = F.cross_entropy(flat_logits, flat_targets, reduction="none")
-                loss = torch.sum(loss_unreduced * token_weights) / torch.sum(token_weights)
+        with torch.amp.autocast("cuda", enabled=(device.type == "cuda")):
+            logits = model(x_batch)
+            flat_logits = logits.view(-1, vocab.size)
+            flat_targets = y_batch.view(-1)
 
-            scaler.scale(loss).backward()
-            scaler.unscale_(optimizer)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-            scaler.step(optimizer)
-            scaler.update()
+            token_weights = byte_weights[flat_targets]
+            loss_unreduced = F.cross_entropy(flat_logits, flat_targets, reduction="none")
+            loss = torch.sum(loss_unreduced * token_weights) / torch.sum(token_weights)
 
-            step += 1
-            loss_val = float(loss.item())
-            loss_history.append(loss_val)
+        scaler.scale(loss).backward()
+        scaler.unscale_(optimizer)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        scaler.step(optimizer)
+        scaler.update()
 
-            # Update live telemetry continuously
-            elapsed = time.time() - start_time
-            tokens_processed = step * batch_size * seq_len
-            tps = tokens_processed / max(0.1, elapsed)
+        step += 1
+        loss_val = float(loss.item())
+        loss_history.append(loss_val)
 
-            update_live_status(
-                status_file=status_file,
-                epoch=epoch,
-                max_epochs=epochs,
-                step=step,
-                total_steps=total_steps,
-                current_loss=loss_val,
-                loss_history=loss_history,
-                tokens_per_sec=tps,
-                elapsed_time=elapsed,
-                shards_count=len(shard_files),
-            )
+        # Update live telemetry continuously
+        elapsed = time.time() - start_time
+        tokens_processed = step * batch_size * seq_len
+        tps = tokens_processed / max(0.1, elapsed)
 
-            if step % 10 == 0:
-                print(f"  [Epoche {epoch}/{epochs}] Step {step:04d}/{total_steps} | Loss: {loss_val:.4f} | TPS: {int(tps)} | VRAM: {torch.cuda.memory_allocated() / (1024*1024):.1f} MB", flush=True)
+        update_live_status(
+            status_file=status_file,
+            epoch=1,
+            max_epochs=1,
+            step=step,
+            total_steps=target_steps,
+            current_loss=loss_val,
+            loss_history=loss_history,
+            tokens_per_sec=tps,
+            elapsed_time=elapsed,
+            shards_count=len(shard_files),
+        )
+
+        if step % 20 == 0:
+            print(f"  Step {step:05d}/{target_steps} | Loss: {loss_val:.4f} | TPS: {int(tps)} | VRAM: {torch.cuda.memory_allocated() / (1024*1024):.1f} MB", flush=True)
 
     # Modell speichern
     model_save_path = "/home/benjamin/Bilder/multi_granular_model.pt"
     torch.save(model.state_dict(), model_save_path)
     print(f"\n💾 Modell erfolgreich gespeichert unter: {model_save_path}", flush=True)
 
-    # 1. Desktop Notification (Linux notify-send)
+    # Desktop Notification
     try:
-        os.system("notify-send '🚀 Bitstream LLM Training' '🎉 Training erfolgreich beendet! Modell gespeichert unter multi_granular_model.pt' -u critical 2>/dev/null")
+        os.system("notify-send '🚀 Fast-Track LLM' '🎉 15-Minuten Vorgeschmack-Modell erfolgreich fertiggestellt!' -u critical 2>/dev/null")
     except Exception:
         pass
 
-    # 2. Final Status Update für Dashboard
     final_data = {
-        "epoch": epochs,
-        "max_epochs": epochs,
-        "step": step,
-        "total_steps": total_steps,
+        "epoch": 1,
+        "max_epochs": 1,
+        "step": target_steps,
+        "total_steps": target_steps,
         "progress_percent": 100.0,
         "eta_str": "00:00 min (FERTIG)",
         "tokens_per_sec": int(tps),
@@ -301,10 +304,6 @@ def train_model():
     except Exception:
         pass
 
-    print("=" * 80, flush=True)
-    print("✨ TRAINING VOLLSTÄNDIG ABGESCHLOSSEN & BENACHRICHTIGUNG GESENDET!", flush=True)
-    print("=" * 80, flush=True)
-
 
 if __name__ == "__main__":
-    train_model()
+    train_fast_track_preview()

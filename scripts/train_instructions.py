@@ -14,17 +14,17 @@ import torch.nn.functional as F
 from pipeline.vocabulary import MultiGranularVocabulary
 from pipeline.bitstream import BitstreamDecoder
 from pipeline.tokenizer import ViterbiTokenizer
-from scripts.train_distributed import MultiGranularCausalTransformer, ShardedBitstreamDataset
+from train_model import MultiGranularCausalTransformer, ShardedBitstreamDataset
 
 
 def train_instruction_tuning():
     parser = argparse.ArgumentParser(description="Step 2: Bitstream Instruction Tuning (SFT)")
-    parser.add_argument("--base_model", type=str, default="./multi_granular_model.pt", help="Pfad zum vortrainierten Basismodell")
-    parser.add_argument("--vocab_file", type=str, default="./data/vocab_65k.json", help="Pfad zu vocab.json")
-    parser.add_argument("--instruction_shards", type=str, default="./data/instructions/shards", help="Pfad zu den Instruction .mgbs Shards")
-    parser.add_argument("--output_model", type=str, default="./multi_granular_instruct_model.pt", help="Zielpfad für das Instruct-Modell")
+    parser.add_argument("--base_model", type=str, default="/home/benjamin/Bilder/multi_granular_model.pt", help="Pfad zum vortrainierten Basismodell")
+    parser.add_argument("--vocab_file", type=str, default="/home/benjamin/Bilder/data/vocab_65k.json", help="Pfad zu vocab.json")
+    parser.add_argument("--instruction_shards", type=str, default="/home/benjamin/Bilder/data/instructions/shards", help="Pfad zu den Instruction .mgbs Shards")
+    parser.add_argument("--output_model", type=str, default="/home/benjamin/Bilder/multi_granular_instruct_model.pt", help="Zielpfad für das Instruct-Modell")
     parser.add_argument("--epochs", type=int, default=3, help="Anzahl Epochen für Feintuning")
-    parser.add_argument("--lr", type=float, default=5e-5, help="Niedrigere Lernrate für SFT")
+    parser.add_argument("--lr", type=float, default=1e-4, help="Lernrate für SFT")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch Size")
     args = parser.parse_args()
 
@@ -36,32 +36,33 @@ def train_instruction_tuning():
     print(f"  - Device: {device} ({torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'})")
 
     if not os.path.exists(args.vocab_file):
-        args.vocab_file = "./vocab.json"
+        args.vocab_file = "/home/benjamin/Bilder/vocab.json"
 
     vocab = MultiGranularVocabulary.load_json(args.vocab_file)
-    shard_files = glob.glob(os.path.join(args.instruction_shards, "*.mgbs"))
+    shard_files = sorted(glob.glob(os.path.join(args.instruction_shards, "*.mgbs")))
 
     if not shard_files:
         print(f"❌ Keine Instruction-Shards in {args.instruction_shards} gefunden!")
-        print("Erzeuge zuerst Shards mit: python scripts/ingest_instructions.py")
         return
 
-    dataset = ShardedBitstreamDataset(shard_files, seq_len=128)
+    dataset = ShardedBitstreamDataset(shard_files, seq_len=64)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
 
-    # Initialisiere Modell
+    # Initialisiere Modell mit identischer Architektur zum Basismodell
     model = MultiGranularCausalTransformer(
         vocab_size=vocab.size,
         rank=64,
         d_model=512,
         n_layers=6,
         n_heads=8,
+        d_ff=1536,
+        max_seq_len=128,
     ).to(device)
 
     # Lade vortrainiertes Basismodell aus Schritt 1
     if os.path.exists(args.base_model):
         print(f"✅ Lade vortrainierte Basisgewichte aus Schritt 1: {args.base_model}")
-        model.load_state_dict(torch.load(args.base_model, map_location=device, weights_only=True), strict=False)
+        model.load_state_dict(torch.load(args.base_model, map_location=device, weights_only=True))
     else:
         print(f"⚠️ Basismodell {args.base_model} nicht gefunden, starte frisches Training.")
 
