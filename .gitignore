@@ -1,0 +1,21 @@
+# Virtual Environment
+.venv/
+env/
+venv/
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Large Data & Shards
+data/
+*.mgbs
+*.pt
+*.safetensors
+*.bin
+
+# OS & IDE
+.DS_Store
+.vscode/
+.idea/

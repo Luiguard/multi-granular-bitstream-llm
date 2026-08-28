@@ -1,0 +1,3270 @@
+{
+  "size": 408,
+  "required_bits": 9,
+  "tokens": [
+    {
+      "id": 0,
+      "text": "\u0000",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 1,
+      "text": "\u0001",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 2,
+      "text": "\u0002",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 3,
+      "text": "\u0003",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 4,
+      "text": "\u0004",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 5,
+      "text": "\u0005",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 6,
+      "text": "\u0006",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 7,
+      "text": "\u0007",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 8,
+      "text": "\b",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 9,
+      "text": "\t",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 10,
+      "text": "\n",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 11,
+      "text": "\u000b",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 12,
+      "text": "\f",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 13,
+      "text": "\r",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 14,
+      "text": "\u000e",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 15,
+      "text": "\u000f",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 16,
+      "text": "\u0010",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 17,
+      "text": "\u0011",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 18,
+      "text": "\u0012",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 19,
+      "text": "\u0013",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 20,
+      "text": "\u0014",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 21,
+      "text": "\u0015",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 22,
+      "text": "\u0016",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 23,
+      "text": "\u0017",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 24,
+      "text": "\u0018",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 25,
+      "text": "\u0019",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 26,
+      "text": "\u001a",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 27,
+      "text": "\u001b",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 28,
+      "text": "\u001c",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 29,
+      "text": "\u001d",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 30,
+      "text": "\u001e",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 31,
+      "text": "\u001f",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 32,
+      "text": " ",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 115,
+      "pmi": 0.0
+    },
+    {
+      "id": 33,
+      "text": "!",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 34,
+      "text": "\"",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 35,
+      "text": "#",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 36,
+      "text": "$",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 37,
+      "text": "%",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 38,
+      "text": "&",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 39,
+      "text": "'",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 40,
+      "text": "(",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 41,
+      "text": ")",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 42,
+      "text": "*",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 43,
+      "text": "+",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 44,
+      "text": ",",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 2,
+      "pmi": 0.0
+    },
+    {
+      "id": 45,
+      "text": "-",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 6,
+      "pmi": 0.0
+    },
+    {
+      "id": 46,
+      "text": ".",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 13,
+      "pmi": 0.0
+    },
+    {
+      "id": 47,
+      "text": "/",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 48,
+      "text": "0",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 49,
+      "text": "1",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 50,
+      "text": "2",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 51,
+      "text": "3",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 52,
+      "text": "4",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 53,
+      "text": "5",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 54,
+      "text": "6",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 55,
+      "text": "7",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 56,
+      "text": "8",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 57,
+      "text": "9",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 58,
+      "text": ":",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 59,
+      "text": ";",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 60,
+      "text": "<",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 61,
+      "text": "=",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 62,
+      "text": ">",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 63,
+      "text": "?",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 64,
+      "text": "@",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 65,
+      "text": "A",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 66,
+      "text": "B",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 67,
+      "text": "C",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 68,
+      "text": "D",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 69,
+      "text": "E",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 70,
+      "text": "F",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 71,
+      "text": "G",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 72,
+      "text": "H",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 73,
+      "text": "I",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 74,
+      "text": "J",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 75,
+      "text": "K",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 76,
+      "text": "L",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 77,
+      "text": "M",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 78,
+      "text": "N",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 79,
+      "text": "O",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 80,
+      "text": "P",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 81,
+      "text": "Q",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 82,
+      "text": "R",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 83,
+      "text": "S",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 84,
+      "text": "T",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 85,
+      "text": "U",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 86,
+      "text": "V",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 87,
+      "text": "W",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 88,
+      "text": "X",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 89,
+      "text": "Y",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 90,
+      "text": "Z",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 91,
+      "text": "[",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 92,
+      "text": "\\",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 93,
+      "text": "]",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 94,
+      "text": "^",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 95,
+      "text": "_",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 96,
+      "text": "`",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 97,
+      "text": "a",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 98,
+      "text": "b",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 99,
+      "text": "c",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 100,
+      "text": "d",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 101,
+      "text": "e",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 102,
+      "text": "f",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 103,
+      "text": "g",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 104,
+      "text": "h",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 105,
+      "text": "i",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 106,
+      "text": "j",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 107,
+      "text": "k",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 108,
+      "text": "l",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 109,
+      "text": "m",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 110,
+      "text": "n",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 111,
+      "text": "o",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 112,
+      "text": "p",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 113,
+      "text": "q",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 114,
+      "text": "r",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 115,
+      "text": "s",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 116,
+      "text": "t",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 117,
+      "text": "u",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 118,
+      "text": "v",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 119,
+      "text": "w",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 120,
+      "text": "x",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 121,
+      "text": "y",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 122,
+      "text": "z",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 123,
+      "text": "{",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 124,
+      "text": "|",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 125,
+      "text": "}",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 126,
+      "text": "~",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 127,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 128,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 129,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 130,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 131,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 132,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 133,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 134,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 135,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 136,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 137,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 138,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 139,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 140,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 141,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 142,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 143,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 144,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 145,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 146,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 147,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 148,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 149,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 150,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 151,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 152,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 153,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 154,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 155,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 156,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 157,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 158,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 159,
+      "text": "",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 160,
+      "text": " ",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 161,
+      "text": "¡",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 162,
+      "text": "¢",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 163,
+      "text": "£",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 164,
+      "text": "¤",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 165,
+      "text": "¥",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 166,
+      "text": "¦",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 167,
+      "text": "§",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 168,
+      "text": "¨",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 169,
+      "text": "©",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 170,
+      "text": "ª",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 171,
+      "text": "«",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 172,
+      "text": "¬",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 173,
+      "text": "­",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 174,
+      "text": "®",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 175,
+      "text": "¯",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 176,
+      "text": "°",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 177,
+      "text": "±",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 178,
+      "text": "²",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 179,
+      "text": "³",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 180,
+      "text": "´",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 181,
+      "text": "µ",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 182,
+      "text": "¶",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 183,
+      "text": "·",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 184,
+      "text": "¸",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 185,
+      "text": "¹",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 186,
+      "text": "º",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 187,
+      "text": "»",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 188,
+      "text": "¼",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 189,
+      "text": "½",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 190,
+      "text": "¾",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 191,
+      "text": "¿",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 192,
+      "text": "À",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 193,
+      "text": "Á",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 194,
+      "text": "Â",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 195,
+      "text": "Ã",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 196,
+      "text": "Ä",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 197,
+      "text": "Å",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 198,
+      "text": "Æ",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 199,
+      "text": "Ç",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 200,
+      "text": "È",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 201,
+      "text": "É",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 202,
+      "text": "Ê",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 203,
+      "text": "Ë",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 204,
+      "text": "Ì",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 205,
+      "text": "Í",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 206,
+      "text": "Î",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 207,
+      "text": "Ï",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 208,
+      "text": "Ð",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 209,
+      "text": "Ñ",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 210,
+      "text": "Ò",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 211,
+      "text": "Ó",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 212,
+      "text": "Ô",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 213,
+      "text": "Õ",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 214,
+      "text": "Ö",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 215,
+      "text": "×",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 216,
+      "text": "Ø",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 217,
+      "text": "Ù",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 218,
+      "text": "Ú",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 219,
+      "text": "Û",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 220,
+      "text": "Ü",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 221,
+      "text": "Ý",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 222,
+      "text": "Þ",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 223,
+      "text": "ß",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 224,
+      "text": "à",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 225,
+      "text": "á",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 226,
+      "text": "â",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 227,
+      "text": "ã",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 228,
+      "text": "ä",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 229,
+      "text": "å",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 230,
+      "text": "æ",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 231,
+      "text": "ç",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 232,
+      "text": "è",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 233,
+      "text": "é",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 234,
+      "text": "ê",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 235,
+      "text": "ë",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 236,
+      "text": "ì",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 237,
+      "text": "í",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 238,
+      "text": "î",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 239,
+      "text": "ï",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 240,
+      "text": "ð",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 241,
+      "text": "ñ",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 242,
+      "text": "ò",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 243,
+      "text": "ó",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 244,
+      "text": "ô",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 245,
+      "text": "õ",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 246,
+      "text": "ö",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 247,
+      "text": "÷",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 248,
+      "text": "ø",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 249,
+      "text": "ù",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 250,
+      "text": "ú",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 251,
+      "text": "û",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 252,
+      "text": "ü",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 253,
+      "text": "ý",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 254,
+      "text": "þ",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 255,
+      "text": "ÿ",
+      "tier": 0,
+      "byte_len": 1,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 256,
+      "text": "der",
+      "tier": 1,
+      "byte_len": 3,
+      "frequency": 11,
+      "pmi": 0.0
+    },
+    {
+      "id": 257,
+      "text": "die",
+      "tier": 1,
+      "byte_len": 3,
+      "frequency": 7,
+      "pmi": 0.0
+    },
+    {
+      "id": 258,
+      "text": "ich",
+      "tier": 1,
+      "byte_len": 3,
+      "frequency": 4,
+      "pmi": 0.0
+    },
+    {
+      "id": 259,
+      "text": "ein",
+      "tier": 1,
+      "byte_len": 3,
+      "frequency": 4,
+      "pmi": 0.0
+    },
+    {
+      "id": 260,
+      "text": "bin",
+      "tier": 1,
+      "byte_len": 3,
+      "frequency": 3,
+      "pmi": 0.0
+    },
+    {
+      "id": 261,
+      "text": "und",
+      "tier": 1,
+      "byte_len": 3,
+      "frequency": 3,
+      "pmi": 0.0
+    },
+    {
+      "id": 262,
+      "text": "auf",
+      "tier": 1,
+      "byte_len": 3,
+      "frequency": 3,
+      "pmi": 0.0
+    },
+    {
+      "id": 263,
+      "text": "mensch",
+      "tier": 1,
+      "byte_len": 6,
+      "frequency": 2,
+      "pmi": 0.0
+    },
+    {
+      "id": 264,
+      "text": "intelligenz",
+      "tier": 1,
+      "byte_len": 11,
+      "frequency": 2,
+      "pmi": 0.0
+    },
+    {
+      "id": 265,
+      "text": "grundlage",
+      "tier": 1,
+      "byte_len": 9,
+      "frequency": 2,
+      "pmi": 0.0
+    },
+    {
+      "id": 266,
+      "text": "wird",
+      "tier": 1,
+      "byte_len": 4,
+      "frequency": 2,
+      "pmi": 0.0
+    },
+    {
+      "id": 267,
+      "text": "in",
+      "tier": 1,
+      "byte_len": 2,
+      "frequency": 2,
+      "pmi": 0.0
+    },
+    {
+      "id": 268,
+      "text": "regel",
+      "tier": 1,
+      "byte_len": 5,
+      "frequency": 2,
+      "pmi": 0.0
+    },
+    {
+      "id": 269,
+      "text": "durch",
+      "tier": 1,
+      "byte_len": 5,
+      "frequency": 2,
+      "pmi": 0.0
+    },
+    {
+      "id": 270,
+      "text": "bei",
+      "tier": 1,
+      "byte_len": 3,
+      "frequency": 2,
+      "pmi": 0.0
+    },
+    {
+      "id": 271,
+      "text": "sequenzen",
+      "tier": 1,
+      "byte_len": 9,
+      "frequency": 2,
+      "pmi": 0.0
+    },
+    {
+      "id": 272,
+      "text": "das",
+      "tier": 1,
+      "byte_len": 3,
+      "frequency": 2,
+      "pmi": 0.0
+    },
+    {
+      "id": 273,
+      "text": "denke",
+      "tier": 1,
+      "byte_len": 5,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 274,
+      "text": "nach",
+      "tier": 1,
+      "byte_len": 4,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 275,
+      "text": "zusammenhänge",
+      "tier": 1,
+      "byte_len": 14,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 276,
+      "text": "welt",
+      "tier": 1,
+      "byte_len": 4,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 277,
+      "text": "verstehen",
+      "tier": 1,
+      "byte_len": 9,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 278,
+      "text": "will",
+      "tier": 1,
+      "byte_len": 4,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 279,
+      "text": "forscher",
+      "tier": 1,
+      "byte_len": 8,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 280,
+      "text": "im",
+      "tier": 1,
+      "byte_len": 2,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 281,
+      "text": "bereich",
+      "tier": 1,
+      "byte_len": 7,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 282,
+      "text": "künstlichen",
+      "tier": 1,
+      "byte_len": 12,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 283,
+      "text": "dieser",
+      "tier": 1,
+      "byte_len": 6,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 284,
+      "text": "daten",
+      "tier": 1,
+      "byte_len": 5,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 285,
+      "text": "können",
+      "tier": 1,
+      "byte_len": 7,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 286,
+      "text": "wir",
+      "tier": 1,
+      "byte_len": 3,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 287,
+      "text": "parameter",
+      "tier": 1,
+      "byte_len": 9,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 288,
+      "text": "exakt",
+      "tier": 1,
+      "byte_len": 5,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 289,
+      "text": "berechnen",
+      "tier": 1,
+      "byte_len": 9,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 290,
+      "text": "empirischer",
+      "tier": 1,
+      "byte_len": 11,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 291,
+      "text": "beobachtungen",
+      "tier": 1,
+      "byte_len": 13,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 292,
+      "text": "theorie",
+      "tier": 1,
+      "byte_len": 7,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 293,
+      "text": "verifiziert",
+      "tier": 1,
+      "byte_len": 11,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 294,
+      "text": "sinkt",
+      "tier": 1,
+      "byte_len": 5,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 295,
+      "text": "sequenzlänge",
+      "tier": 1,
+      "byte_len": 13,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 296,
+      "text": "multi",
+      "tier": 1,
+      "byte_len": 5,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 297,
+      "text": "granulare",
+      "tier": 1,
+      "byte_len": 9,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 298,
+      "text": "tokens",
+      "tier": 1,
+      "byte_len": 6,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 299,
+      "text": "um",
+      "tier": 1,
+      "byte_len": 2,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 300,
+      "text": "über",
+      "tier": 1,
+      "byte_len": 5,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 301,
+      "text": "sechzig",
+      "tier": 1,
+      "byte_len": 7,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 302,
+      "text": "prozent",
+      "tier": 1,
+      "byte_len": 7,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 303,
+      "text": "führt",
+      "tier": 1,
+      "byte_len": 6,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 304,
+      "text": "quadratische",
+      "tier": 1,
+      "byte_len": 12,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 305,
+      "text": "aufmerksamkeit",
+      "tier": 1,
+      "byte_len": 14,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 306,
+      "text": "langen",
+      "tier": 1,
+      "byte_len": 6,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 307,
+      "text": "zu",
+      "tier": 1,
+      "byte_len": 2,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 308,
+      "text": "speicherengpässen",
+      "tier": 1,
+      "byte_len": 18,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 309,
+      "text": "künstliche",
+      "tier": 1,
+      "byte_len": 11,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 310,
+      "text": "maschinelles",
+      "tier": 1,
+      "byte_len": 12,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 311,
+      "text": "lernen",
+      "tier": 1,
+      "byte_len": 6,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 312,
+      "text": "revolutionieren",
+      "tier": 1,
+      "byte_len": 15,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 313,
+      "text": "moderne",
+      "tier": 1,
+      "byte_len": 7,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 314,
+      "text": "architectures",
+      "tier": 1,
+      "byte_len": 13,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 315,
+      "text": "bitstream",
+      "tier": 1,
+      "byte_len": 9,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 316,
+      "text": "speichert",
+      "tier": 1,
+      "byte_len": 9,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 317,
+      "text": "token",
+      "tier": 1,
+      "byte_len": 5,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 318,
+      "text": "ohne",
+      "tier": 1,
+      "byte_len": 4,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 319,
+      "text": "unnötigen",
+      "tier": 1,
+      "byte_len": 10,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 320,
+      "text": "overhead",
+      "tier": 1,
+      "byte_len": 8,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 321,
+      "text": "bit",
+      "tier": 1,
+      "byte_len": 3,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 322,
+      "text": "gepackt",
+      "tier": 1,
+      "byte_len": 7,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 323,
+      "text": "festplatte",
+      "tier": 1,
+      "byte_len": 10,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 324,
+      "text": "modell",
+      "tier": 1,
+      "byte_len": 6,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 325,
+      "text": "lernt",
+      "tier": 1,
+      "byte_len": 5,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 326,
+      "text": "sowohl",
+      "tier": 1,
+      "byte_len": 6,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 327,
+      "text": "elementare",
+      "tier": 1,
+      "byte_len": 10,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 328,
+      "text": "wörter",
+      "tier": 1,
+      "byte_len": 7,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 329,
+      "text": "als",
+      "tier": 1,
+      "byte_len": 3,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 330,
+      "text": "auch",
+      "tier": 1,
+      "byte_len": 4,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 331,
+      "text": "komplexe",
+      "tier": 1,
+      "byte_len": 8,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 332,
+      "text": "phrasen",
+      "tier": 1,
+      "byte_len": 7,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 333,
+      "text": "satzmuster",
+      "tier": 1,
+      "byte_len": 10,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 334,
+      "text": "faktorierte",
+      "tier": 1,
+      "byte_len": 11,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 335,
+      "text": "embedding",
+      "tier": 1,
+      "byte_len": 9,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 336,
+      "text": "speicherbedarf",
+      "tier": 1,
+      "byte_len": 14,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 337,
+      "text": "vokabulartabelle",
+      "tier": 1,
+      "byte_len": 16,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 338,
+      "text": "drastisch",
+      "tier": 1,
+      "byte_len": 9,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 339,
+      "text": "reduziert",
+      "tier": 1,
+      "byte_len": 9,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 340,
+      "text": "byte",
+      "tier": 1,
+      "byte_len": 4,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 341,
+      "text": "gewichtete",
+      "tier": 1,
+      "byte_len": 10,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 342,
+      "text": "loss",
+      "tier": 1,
+      "byte_len": 4,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 343,
+      "text": "funktion",
+      "tier": 1,
+      "byte_len": 8,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 344,
+      "text": "verhindert",
+      "tier": 1,
+      "byte_len": 10,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 345,
+      "text": "verzerrung",
+      "tier": 1,
+      "byte_len": 10,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 346,
+      "text": "gradienten",
+      "tier": 1,
+      "byte_len": 10,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 347,
+      "text": "variabler",
+      "tier": 1,
+      "byte_len": 9,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 348,
+      "text": "tokenlänge",
+      "tier": 1,
+      "byte_len": 11,
+      "frequency": 1,
+      "pmi": 0.0
+    },
+    {
+      "id": 349,
+      "text": "ich bin ein",
+      "tier": 2,
+      "byte_len": 11,
+      "frequency": 3,
+      "pmi": 14.780622068542568
+    },
+    {
+      "id": 350,
+      "text": "auf der grundlage",
+      "tier": 2,
+      "byte_len": 17,
+      "frequency": 2,
+      "pmi": 13.736227949184114
+    },
+    {
+      "id": 351,
+      "text": "bin ein mensch",
+      "tier": 2,
+      "byte_len": 14,
+      "frequency": 2,
+      "pmi": 15.195659567821412
+    },
+    {
+      "id": 352,
+      "text": "in der regel",
+      "tier": 2,
+      "byte_len": 12,
+      "frequency": 2,
+      "pmi": 14.321190449905272
+    },
+    {
+      "id": 353,
+      "text": " bin ein ",
+      "tier": 2,
+      "byte_len": 9,
+      "frequency": 3,
+      "pmi": 9.947732054377827
+    },
+    {
+      "id": 354,
+      "text": " der grundlage ",
+      "tier": 2,
+      "byte_len": 15,
+      "frequency": 2,
+      "pmi": 8.48830043574053
+    },
+    {
+      "id": 355,
+      "text": " der grundlage",
+      "tier": 2,
+      "byte_len": 14,
+      "frequency": 2,
+      "pmi": 7.203915822911514
+    },
+    {
+      "id": 356,
+      "text": "der grundlage ",
+      "tier": 2,
+      "byte_len": 14,
+      "frequency": 2,
+      "pmi": 7.203915822911514
+    },
+    {
+      "id": 357,
+      "text": "ich bin ",
+      "tier": 2,
+      "byte_len": 8,
+      "frequency": 3,
+      "pmi": 8.663347441548812
+    },
+    {
+      "id": 358,
+      "text": " bin ein",
+      "tier": 2,
+      "byte_len": 8,
+      "frequency": 3,
+      "pmi": 8.663347441548812
+    },
+    {
+      "id": 359,
+      "text": "bin ein ",
+      "tier": 2,
+      "byte_len": 8,
+      "frequency": 3,
+      "pmi": 8.663347441548812
+    },
+    {
+      "id": 360,
+      "text": " ein mensch",
+      "tier": 2,
+      "byte_len": 11,
+      "frequency": 2,
+      "pmi": 8.663347441548812
+    },
+    {
+      "id": 361,
+      "text": " der regel ",
+      "tier": 2,
+      "byte_len": 11,
+      "frequency": 2,
+      "pmi": 8.48830043574053
+    },
+    {
+      "id": 362,
+      "text": "auf der ",
+      "tier": 2,
+      "byte_len": 8,
+      "frequency": 3,
+      "pmi": 7.2039158229115134
+    },
+    {
+      "id": 363,
+      "text": "der grundlage",
+      "tier": 2,
+      "byte_len": 13,
+      "frequency": 2,
+      "pmi": 5.92356852709412
+    },
+    {
+      "id": 364,
+      "text": "ich bin",
+      "tier": 2,
+      "byte_len": 7,
+      "frequency": 3,
+      "pmi": 7.383000145731417
+    },
+    {
+      "id": 365,
+      "text": "bin ein",
+      "tier": 2,
+      "byte_len": 7,
+      "frequency": 3,
+      "pmi": 7.383000145731416
+    },
+    {
+      "id": 366,
+      "text": "ein mensch",
+      "tier": 2,
+      "byte_len": 10,
+      "frequency": 2,
+      "pmi": 7.383000145731416
+    },
+    {
+      "id": 367,
+      "text": " der regel",
+      "tier": 2,
+      "byte_len": 10,
+      "frequency": 2,
+      "pmi": 7.203915822911514
+    },
+    {
+      "id": 368,
+      "text": "der regel ",
+      "tier": 2,
+      "byte_len": 10,
+      "frequency": 2,
+      "pmi": 7.203915822911514
+    },
+    {
+      "id": 369,
+      "text": " der ",
+      "tier": 2,
+      "byte_len": 5,
+      "frequency": 11,
+      "pmi": 2.5501101315666754
+    },
+    {
+      "id": 370,
+      "text": "auf der",
+      "tier": 2,
+      "byte_len": 7,
+      "frequency": 3,
+      "pmi": 5.92356852709412
+    },
+    {
+      "id": 371,
+      "text": "der regel",
+      "tier": 2,
+      "byte_len": 9,
+      "frequency": 2,
+      "pmi": 5.92356852709412
+    },
+    {
+      "id": 372,
+      "text": "in der ",
+      "tier": 2,
+      "byte_len": 7,
+      "frequency": 2,
+      "pmi": 7.203915822911514
+    },
+    {
+      "id": 373,
+      "text": "in der",
+      "tier": 2,
+      "byte_len": 6,
+      "frequency": 2,
+      "pmi": 5.92356852709412
+    },
+    {
+      "id": 374,
+      "text": " die ",
+      "tier": 2,
+      "byte_len": 5,
+      "frequency": 6,
+      "pmi": 2.327717710230227
+    },
+    {
+      "id": 375,
+      "text": " grundlage ",
+      "tier": 2,
+      "byte_len": 11,
+      "frequency": 2,
+      "pmi": 2.5501101315666754
+    },
+    {
+      "id": 376,
+      "text": " der",
+      "tier": 2,
+      "byte_len": 4,
+      "frequency": 11,
+      "pmi": 1.2734044104690914
+    },
+    {
+      "id": 377,
+      "text": "der ",
+      "tier": 2,
+      "byte_len": 4,
+      "frequency": 11,
+      "pmi": 1.2734044104690914
+    },
+    {
+      "id": 378,
+      "text": " bin ",
+      "tier": 2,
+      "byte_len": 5,
+      "frequency": 3,
+      "pmi": 2.5501101315666754
+    },
+    {
+      "id": 379,
+      "text": " und ",
+      "tier": 2,
+      "byte_len": 5,
+      "frequency": 3,
+      "pmi": 2.5501101315666754
+    },
+    {
+      "id": 380,
+      "text": " regel ",
+      "tier": 2,
+      "byte_len": 7,
+      "frequency": 2,
+      "pmi": 2.5501101315666754
+    },
+    {
+      "id": 381,
+      "text": " intelligenz",
+      "tier": 2,
+      "byte_len": 12,
+      "frequency": 2,
+      "pmi": 1.2734044104690911
+    },
+    {
+      "id": 382,
+      "text": "die ",
+      "tier": 2,
+      "byte_len": 4,
+      "frequency": 7,
+      "pmi": 1.2734044104690911
+    },
+    {
+      "id": 383,
+      "text": " ein ",
+      "tier": 2,
+      "byte_len": 5,
+      "frequency": 3,
+      "pmi": 2.1350726322878315
+    },
+    {
+      "id": 384,
+      "text": " wird ",
+      "tier": 2,
+      "byte_len": 6,
+      "frequency": 2,
+      "pmi": 2.5501101315666754
+    },
+    {
+      "id": 385,
+      "text": " grundlage",
+      "tier": 2,
+      "byte_len": 10,
+      "frequency": 2,
+      "pmi": 1.2734044104690911
+    },
+    {
+      "id": 386,
+      "text": "grundlage ",
+      "tier": 2,
+      "byte_len": 10,
+      "frequency": 2,
+      "pmi": 1.2734044104690911
+    },
+    {
+      "id": 387,
+      "text": "sequenzen ",
+      "tier": 2,
+      "byte_len": 10,
+      "frequency": 2,
+      "pmi": 1.2734044104690911
+    },
+    {
+      "id": 388,
+      "text": " bei ",
+      "tier": 2,
+      "byte_len": 5,
+      "frequency": 2,
+      "pmi": 2.5501101315666754
+    },
+    {
+      "id": 389,
+      "text": " die",
+      "tier": 2,
+      "byte_len": 4,
+      "frequency": 6,
+      "pmi": 1.0510119891326433
+    },
+    {
+      "id": 390,
+      "text": "ich ",
+      "tier": 2,
+      "byte_len": 4,
+      "frequency": 4,
+      "pmi": 1.2734044104690911
+    },
+    {
+      "id": 391,
+      "text": "ein ",
+      "tier": 2,
+      "byte_len": 4,
+      "frequency": 4,
+      "pmi": 1.2734044104690911
+    },
+    {
+      "id": 392,
+      "text": " mensch",
+      "tier": 2,
+      "byte_len": 7,
+      "frequency": 2,
+      "pmi": 1.2734044104690911
+    },
+    {
+      "id": 393,
+      "text": " regel",
+      "tier": 2,
+      "byte_len": 6,
+      "frequency": 2,
+      "pmi": 1.2734044104690911
+    },
+    {
+      "id": 394,
+      "text": "regel ",
+      "tier": 2,
+      "byte_len": 6,
+      "frequency": 2,
+      "pmi": 1.2734044104690911
+    },
+    {
+      "id": 395,
+      "text": "durch ",
+      "tier": 2,
+      "byte_len": 6,
+      "frequency": 2,
+      "pmi": 1.2734044104690911
+    },
+    {
+      "id": 396,
+      "text": " bin",
+      "tier": 2,
+      "byte_len": 4,
+      "frequency": 3,
+      "pmi": 1.273404410469091
+    },
+    {
+      "id": 397,
+      "text": "bin ",
+      "tier": 2,
+      "byte_len": 4,
+      "frequency": 3,
+      "pmi": 1.273404410469091
+    },
+    {
+      "id": 398,
+      "text": " und",
+      "tier": 2,
+      "byte_len": 4,
+      "frequency": 3,
+      "pmi": 1.273404410469091
+    },
+    {
+      "id": 399,
+      "text": "und ",
+      "tier": 2,
+      "byte_len": 4,
+      "frequency": 3,
+      "pmi": 1.273404410469091
+    },
+    {
+      "id": 400,
+      "text": "auf ",
+      "tier": 2,
+      "byte_len": 4,
+      "frequency": 3,
+      "pmi": 1.273404410469091
+    },
+    {
+      "id": 401,
+      "text": " wird",
+      "tier": 2,
+      "byte_len": 5,
+      "frequency": 2,
+      "pmi": 1.2734044104690911
+    },
+    {
+      "id": 402,
+      "text": "wird ",
+      "tier": 2,
+      "byte_len": 5,
+      "frequency": 2,
+      "pmi": 1.2734044104690911
+    },
+    {
+      "id": 403,
+      "text": " ein",
+      "tier": 2,
+      "byte_len": 4,
+      "frequency": 3,
+      "pmi": 0.8583669111902473
+    },
+    {
+      "id": 404,
+      "text": " bei",
+      "tier": 2,
+      "byte_len": 4,
+      "frequency": 2,
+      "pmi": 1.2734044104690911
+    },
+    {
+      "id": 405,
+      "text": "bei ",
+      "tier": 2,
+      "byte_len": 4,
+      "frequency": 2,
+      "pmi": 1.2734044104690911
+    },
+    {
+      "id": 406,
+      "text": "das ",
+      "tier": 2,
+      "byte_len": 4,
+      "frequency": 2,
+      "pmi": 1.2734044104690911
+    },
+    {
+      "id": 407,
+      "text": "in ",
+      "tier": 2,
+      "byte_len": 3,
+      "frequency": 2,
+      "pmi": 1.2734044104690911
+    }
+  ]
+}
