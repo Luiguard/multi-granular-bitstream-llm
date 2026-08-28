@@ -40,7 +40,7 @@ def train_instruction_tuning():
         args.vocab_file = "/home/benjamin/Bilder/vocab.json"
 
     vocab = MultiGranularVocabulary.load_json(args.vocab_file)
-    shard_files = sorted(glob.glob(os.path.join(args.instruction_shards, "*.mgbs")))
+    shard_files = sorted(glob.glob(os.path.join(args.instruction_shards, "*.mgbs")) + glob.glob("/home/benjamin/Bilder/data/biology_math/shards/*.mgbs"))
 
     if not shard_files:
         print(f"❌ Keine Instruction-Shards in {args.instruction_shards} gefunden!", flush=True)
