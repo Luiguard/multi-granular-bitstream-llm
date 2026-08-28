@@ -2,9 +2,10 @@
 
 let lossHistory = [];
 const canvas = document.getElementById('lossChart');
-const ctx = canvas.getContext('2d');
+const ctx = canvas ? canvas.getContext('2d') : null;
 
 function resizeCanvas() {
+  if (!canvas) return;
   canvas.width = canvas.parentElement.clientWidth * window.devicePixelRatio;
   canvas.height = canvas.parentElement.clientHeight * window.devicePixelRatio;
   drawChart();
@@ -80,6 +81,16 @@ function drawChart() {
   ctx.fill();
 }
 
+function updateElement(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+
+function updateStyle(id, prop, val) {
+  const el = document.getElementById(id);
+  if (el) el.style[prop] = val;
+}
+
 async function fetchMetrics() {
   try {
     const res = await fetch('/api/metrics');
@@ -87,30 +98,38 @@ async function fetchMetrics() {
     const data = await res.json();
 
     // 1. Progress & ETA
-    document.getElementById('epoch-step-label').textContent = `Epoche ${data.epoch}/${data.max_epochs} · Step ${data.step} / ${data.total_steps}`;
+    updateElement('epoch-step-label', `Epoche ${data.epoch || 1}/${data.max_epochs || 1} · Step ${(data.step || 0).toLocaleString()} / ${(data.total_steps || 0).toLocaleString()}`);
     const percent = Math.min(100, Math.max(0, data.progress_percent || 0)).toFixed(1);
-    document.getElementById('percent-label').textContent = `${percent}%`;
-    document.getElementById('progress-bar-fill').style.width = `${percent}%`;
+    updateElement('percent-label', `${percent}%`);
+    updateStyle('progress-bar-fill', 'width', `${percent}%`);
 
-    document.getElementById('eta-value').textContent = data.eta_str || '--:-- min';
-    document.getElementById('throughput-value').textContent = `${data.tokens_per_sec.toLocaleString()} Tokens/s`;
-    document.getElementById('current-loss-value').textContent = data.current_loss.toFixed(4);
-    document.getElementById('shards-count-value').textContent = `${data.shards_processed} Shards`;
+    updateElement('eta-value', data.eta_str || '--:-- min');
+    updateElement('throughput-value', `${(data.tokens_per_sec || 0).toLocaleString()} Tokens/s`);
+    updateElement('current-loss-value', Number(data.current_loss || 0).toFixed(4));
+    updateElement('shards-count-value', `${data.shards_processed || 0} Shards`);
 
     // 2. Hardware Telemetry
-    document.getElementById('vram-text').textContent = `${data.gpu_vram_used_gb.toFixed(1)} / ${data.gpu_vram_total_gb.toFixed(1)} GB`;
-    const vramPct = (data.gpu_vram_used_gb / data.gpu_vram_total_gb) * 100;
-    document.getElementById('vram-bar').style.width = `${Math.min(100, vramPct)}%`;
+    if (data.gpu_vram_used_gb !== undefined) {
+      updateElement('vram-text', `${data.gpu_vram_used_gb.toFixed(1)} / ${data.gpu_vram_total_gb.toFixed(1)} GB`);
+      const vramPct = (data.gpu_vram_used_gb / data.gpu_vram_total_gb) * 100;
+      updateStyle('vram-bar', 'width', `${Math.min(100, vramPct)}%`);
+    }
 
-    document.getElementById('gpu-temp-text').textContent = `${data.gpu_temp_c}°C · ${data.gpu_util_pct}% Util`;
-    document.getElementById('gpu-temp-bar').style.width = `${data.gpu_util_pct}%`;
+    if (data.gpu_temp_c !== undefined) {
+      updateElement('gpu-temp-text', `${data.gpu_temp_c}°C · ${data.gpu_util_pct || 0}% Util`);
+      updateStyle('gpu-temp-bar', 'width', `${data.gpu_util_pct || 0}%`);
+    }
 
-    document.getElementById('ram-text').textContent = `${data.ram_used_gb.toFixed(1)} / ${data.ram_total_gb.toFixed(1)} GB`;
-    const ramPct = (data.ram_used_gb / data.ram_total_gb) * 100;
-    document.getElementById('ram-bar').style.width = `${Math.min(100, ramPct)}%`;
+    if (data.ram_used_gb !== undefined) {
+      updateElement('ram-text', `${data.ram_used_gb.toFixed(1)} / ${data.ram_total_gb.toFixed(1)} GB`);
+      const ramPct = (data.ram_used_gb / data.ram_total_gb) * 100;
+      updateStyle('ram-bar', 'width', `${Math.min(100, ramPct)}%`);
+    }
 
-    document.getElementById('cpu-text').textContent = `${data.cpu_util_pct}%`;
-    document.getElementById('cpu-bar').style.width = `${data.cpu_util_pct}%`;
+    if (data.cpu_util_pct !== undefined) {
+      updateElement('cpu-text', `${data.cpu_util_pct}%`);
+      updateStyle('cpu-bar', 'width', `${data.cpu_util_pct}%`);
+    }
 
     // 3. Loss Chart History
     if (data.loss_history && data.loss_history.length > 0) {
@@ -123,25 +142,38 @@ async function fetchMetrics() {
   }
 }
 
-// Interactive Prompt Test
-document.getElementById('btn-generate').addEventListener('click', async () => {
-  const prompt = document.getElementById('prompt-input').value.trim();
-  const outputEl = document.getElementById('generation-output');
-  if (!prompt) return;
-
-  outputEl.textContent = 'Generiere über Viterbi-Bitstream...';
-  try {
-    const res = await fetch('/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: prompt, max_tokens: 30 })
-    });
-    const result = await res.json();
-    outputEl.textContent = result.text || 'Keine Antwort erhalten.';
-  } catch (e) {
-    outputEl.textContent = 'Fehler bei der Generierung: ' + e;
+// Preset Helper
+window.setPrompt = function(text) {
+  const input = document.getElementById('prompt-input');
+  if (input) {
+    input.value = text;
+    input.focus();
   }
-});
+};
+
+// Interactive Prompt Test
+const genBtn = document.getElementById('btn-generate');
+if (genBtn) {
+  genBtn.addEventListener('click', async () => {
+    const input = document.getElementById('prompt-input');
+    const prompt = input ? input.value.trim() : '';
+    const outputEl = document.getElementById('generation-output');
+    if (!prompt || !outputEl) return;
+
+    outputEl.textContent = '⚡ Generiere über Viterbi-Bitstream...';
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: prompt, max_tokens: 40 })
+      });
+      const result = await res.json();
+      outputEl.textContent = result.text || 'Keine Antwort erhalten.';
+    } catch (e) {
+      outputEl.textContent = 'Fehler bei der Generierung: ' + e;
+    }
+  });
+}
 
 // Initial Setup
 resizeCanvas();
