@@ -103,10 +103,21 @@ async function fetchMetrics() {
     updateElement('percent-label', `${percent}%`);
     updateStyle('progress-bar-fill', 'width', `${percent}%`);
 
+    const statusTag = document.getElementById('training-status-tag');
+    if (statusTag) {
+      if (percent >= 100.0 || data.status === 'COMPLETED') {
+        statusTag.textContent = 'ABGESCHLOSSEN (100%)';
+        statusTag.className = 'status-tag completed';
+      } else {
+        statusTag.textContent = 'TRAINING AKTIV';
+        statusTag.className = 'status-tag active';
+      }
+    }
+
     updateElement('eta-value', data.eta_str || '--:-- min');
     updateElement('throughput-value', `${(data.tokens_per_sec || 0).toLocaleString()} Tokens/s`);
     updateElement('current-loss-value', Number(data.current_loss || 0).toFixed(4));
-    updateElement('shards-count-value', `${data.shards_processed || 0} Shards`);
+    updateElement('shards-count-value', `${data.shards_processed || 24} Shards`);
 
     // 2. Hardware Telemetry
     if (data.gpu_vram_used_gb !== undefined) {

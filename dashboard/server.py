@@ -170,16 +170,42 @@ class DashboardHandler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", 0))
             body = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
             prompt = body.get("prompt", "")
+            temperature = float(body.get("temperature", 0.75))
+            top_p = float(body.get("top_p", 0.90))
+            repetition_penalty = float(body.get("repetition_penalty", 1.35))
+            max_tokens = int(body.get("max_tokens", 35))
 
-            # Reale Inferenz durch das vortrainierte Modell
             tokens = TOKENIZER.encode(prompt)
             input_ids = list(tokens)
 
             with torch.no_grad():
-                for _ in range(40):
+                for _ in range(max_tokens):
                     inp_tensor = torch.tensor([input_ids[-128:]], dtype=torch.long, device=DEVICE)
-                    logits = MODEL(inp_tensor)
-                    next_token = int(torch.argmax(logits[0, -1, :]).item())
+                    logits = MODEL(inp_tensor)[0, -1, :]
+
+                    # Repetition Penalty
+                    for prev_token in set(input_ids):
+                        if logits[prev_token] > 0:
+                            logits[prev_token] /= repetition_penalty
+                        else:
+                            logits[prev_token] *= repetition_penalty
+
+                    # Temperature Scaling
+                    logits = logits / max(0.1, temperature)
+
+                    # Top-p (Nucleus) Filtering
+                    sorted_logits, sorted_indices = torch.sort(logits, descending=True)
+                    cumulative_probs = torch.cumsum(F.softmax(sorted_logits, dim=-1), dim=-1)
+
+                    sorted_indices_to_remove = cumulative_probs > top_p
+                    sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
+                    sorted_indices_to_remove[..., 0] = 0
+
+                    indices_to_remove = sorted_indices[sorted_indices_to_remove]
+                    logits[indices_to_remove] = -float("Inf")
+
+                    probs = F.softmax(logits, dim=-1)
+                    next_token = int(torch.multinomial(probs, num_samples=1).item())
                     input_ids.append(next_token)
 
             gen_tokens = input_ids[len(tokens):]
