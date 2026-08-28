@@ -175,7 +175,13 @@ class DashboardHandler(BaseHTTPRequestHandler):
             repetition_penalty = float(body.get("repetition_penalty", 1.35))
             max_tokens = int(body.get("max_tokens", 35))
 
-            tokens = TOKENIZER.encode(prompt)
+            # Chat Template Formatting
+            if "### Benutzer:" not in prompt and "### Assistent:" not in prompt:
+                formatted_prompt = f"### Benutzer:\n{prompt}\n\n### Assistent:\n"
+            else:
+                formatted_prompt = prompt
+
+            tokens = TOKENIZER.encode(formatted_prompt)
             input_ids = list(tokens)
 
             with torch.no_grad():
@@ -184,7 +190,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     logits = MODEL(inp_tensor)[0, -1, :]
 
                     # Repetition Penalty
-                    for prev_token in set(input_ids):
+                    for prev_token in set(input_ids[-32:]):
                         if logits[prev_token] > 0:
                             logits[prev_token] /= repetition_penalty
                         else:
@@ -208,9 +214,17 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     next_token = int(torch.multinomial(probs, num_samples=1).item())
                     input_ids.append(next_token)
 
+                    # Stop if End-of-Turn token is reached
+                    decoded_so_far = TOKENIZER.decode(input_ids[len(tokens):])
+                    if "### Benutzer:" in decoded_so_far or "### User:" in decoded_so_far:
+                        break
+
             gen_tokens = input_ids[len(tokens):]
             generated_text = TOKENIZER.decode(gen_tokens)
-            output_text = f"{prompt} {generated_text.strip()}"
+
+            # Strip trailing turn markers
+            cleaned_text = generated_text.split("### Benutzer:")[0].split("### User:")[0].strip()
+            output_text = f"**Frage:** {prompt}\n\n**Antwort:** {cleaned_text}"
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
