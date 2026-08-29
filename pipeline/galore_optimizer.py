@@ -364,6 +364,3 @@ class GaLoreAdamW(Optimizer):
             update = (exp_avg / denom) * step_size
             update.clamp_(-1.0, 1.0)
             p.add_(-update.to(dtype=p.dtype))
-            
-        # VRAM sofort freigeben (aber KEIN gc.collect() — das war 1000x pro Step viel zu langsam!)
-        torch.cuda.empty_cache()
