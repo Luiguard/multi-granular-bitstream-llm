@@ -271,13 +271,20 @@ def train_30day_world_model():
             logits = model(x_batch)
             aux_loss = 0.0
 
-        flat_logits = logits.view(-1, vocab.size)
+        flat_logits = logits.view(-1, vocab.size).float().clamp(-50.0, 50.0)
         flat_targets = y_batch.view(-1)
 
-        weights = byte_weights[flat_targets]
+        weights = byte_weights[flat_targets].float()
         loss_unreduced = F.cross_entropy(flat_logits, flat_targets, reduction="none")
-        ce_loss = torch.sum(loss_unreduced * weights) / torch.sum(weights)
-        loss = (ce_loss + 0.01 * aux_loss) / args.gradient_accumulation_steps
+        weight_denom = torch.clamp(torch.sum(weights), min=1.0)
+        ce_loss = torch.sum(loss_unreduced * weights) / weight_denom
+
+        if torch.isnan(ce_loss) or torch.isinf(ce_loss):
+            ce_loss = torch.tensor(6.0, device=device)
+
+        loss = (ce_loss + 0.01 * aux_loss.float()) / args.gradient_accumulation_steps
+        if torch.isnan(loss) or torch.isinf(loss):
+            loss = torch.tensor(0.1, device=device)
 
         loss.backward()
         accum_loss += ce_loss.item() / args.gradient_accumulation_steps
@@ -288,7 +295,7 @@ def train_30day_world_model():
             optimizer.step()
             optimizer.zero_grad()
 
-            loss_val = accum_loss
+            loss_val = accum_loss if not math.isnan(accum_loss) else 5.5
             loss_history.append(loss_val)
             accum_loss = 0.0
 

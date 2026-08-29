@@ -23,19 +23,20 @@ class Top2GatingRouter(nn.Module):
 
     def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         # x shape: (B * T, d_model)
-        logits = self.gate(x)
-        weights = F.softmax(logits, dim=-1)
+        logits = self.gate(x).float().clamp(-30.0, 30.0)
+        weights = F.softmax(logits, dim=-1).type_as(x)
 
         # Select Top-2 experts
         top2_weights, top2_indices = torch.topk(weights, k=2, dim=-1)
 
-        # Normalize weights
-        top2_weights = top2_weights / top2_weights.sum(dim=-1, keepdim=True)
+        # Normalize weights safely
+        weight_sum = torch.clamp(top2_weights.sum(dim=-1, keepdim=True), min=1e-6)
+        top2_weights = top2_weights / weight_sum
 
         # Auxiliary Load Balancing Loss
-        density = weights.mean(dim=0)
+        density = weights.float().mean(dim=0)
         fraction = (weights > 0.1).float().mean(dim=0)
-        aux_loss = self.num_experts * torch.sum(density * fraction)
+        aux_loss = (self.num_experts * torch.sum(density * fraction)).type_as(x)
 
         return top2_indices, top2_weights, aux_loss
 
