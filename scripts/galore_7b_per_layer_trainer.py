@@ -117,8 +117,11 @@ def train_30day_world_model():
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--lr_max", type=float, default=4e-4)
     parser.add_argument("--lr_min", type=float, default=2e-5)
+    parser.add_argument("--checkpoint_dir", type=str, default="/home/benjamin/Bilder/checkpoints")
+    parser.add_argument("--save_interval", type=int, default=25)
     args = parser.parse_args()
     device = torch.device("cuda")
+    os.makedirs(args.checkpoint_dir, exist_ok=True)
 
     vocab_file = "/home/benjamin/Bilder/data/vocab_65k.json"
     if not os.path.exists(vocab_file):
@@ -155,6 +158,40 @@ def train_30day_world_model():
     total_params = sum(p.numel() for p in model.parameters())
     print(f"  - Gesamte Parameter:  {total_params:,}", flush=True)
     print("  - Native Kontextlänge: 7,168 Tokens (Llama-3 RoPE Scaling)", flush=True)
+
+    # -------------------------------------------------------------------------
+    # CHECKPOINT RESUME & PRE-TRAINED WARM-START
+    # -------------------------------------------------------------------------
+    step = 0
+    tokens_processed = 0
+    loss_history = []
+    
+    moe_latest_ckpt = os.path.join(args.checkpoint_dir, "7b_checkpoint_latest.pt")
+    base_latest_ckpt = os.path.join(args.checkpoint_dir, "checkpoint_latest.pt")
+    
+    if os.path.exists(moe_latest_ckpt):
+        print(f"  🔄 Lade existierenden 7B Checkpoint: {moe_latest_ckpt}...", flush=True)
+        try:
+            ckpt = torch.load(moe_latest_ckpt, map_location="cpu")
+            if isinstance(ckpt, dict) and "model_state_dict" in ckpt:
+                model.load_state_dict(ckpt["model_state_dict"], strict=False)
+                step = ckpt.get("step", 0)
+                tokens_processed = ckpt.get("tokens_processed", step * 7168)
+                loss_history = ckpt.get("loss_history", [])
+            else:
+                model.load_state_dict(ckpt, strict=False)
+            print(f"  ✅ 7B Checkpoint erfolgreich geladen! Setze fort bei Step {step:,} ({tokens_processed:,} Tokens).", flush=True)
+        except Exception as e:
+            print(f"  ⚠️ Warnung beim Laden von {moe_latest_ckpt}: {e}", flush=True)
+    elif os.path.exists(base_latest_ckpt):
+        print(f"  🌱 Initialisiere Warm-Start aus Basismodell-Checkpoint: {base_latest_ckpt}...", flush=True)
+        try:
+            ckpt = torch.load(base_latest_ckpt, map_location="cpu")
+            sd = ckpt["model_state_dict"] if (isinstance(ckpt, dict) and "model_state_dict" in ckpt) else ckpt
+            matched = model.load_state_dict(sd, strict=False)
+            print(f"  ✅ Basiswissen transferiert ({len(matched.missing_keys)} MoE-Expert-Parameter warm initialisiert).", flush=True)
+        except Exception as e:
+            print(f"  ⚠️ Warnung beim Basismodell-Transfer: {e}", flush=True)
 
     # -------------------------------------------------------------------------
     # JIT LAYER OFFLOADING (Verhindert 100% jegliches OOM durch FSDP Overhead)
@@ -226,10 +263,7 @@ def train_30day_world_model():
 
     model.train()
     start_time = time.time()
-    step = 0
-    loss_history = []
     status_file = "/home/benjamin/Bilder/data/training_status.json"
-    tokens_processed = 0
 
     print("\n🚀 Starte 7B Dauerlauf mit Dynamischem Trainingsgraphen (7168 Kontext) & GaLore...", flush=True)
     while step < 1000000:
@@ -291,11 +325,19 @@ def train_30day_world_model():
             active_node_name=active_node.name,
         )
 
-        if step > 0 and step % 500 == 0:
+        if step > 0 and step % args.save_interval == 0:
             os.makedirs(args.checkpoint_dir, exist_ok=True)
+            ckpt_data = {
+                "step": step,
+                "tokens_processed": tokens_processed,
+                "loss_history": loss_history[-100:],
+                "model_state_dict": model.state_dict(),
+            }
             ckpt_path = os.path.join(args.checkpoint_dir, f"7b_checkpoint_step_{step}.pt")
-            torch.save(model.state_dict(), ckpt_path)
-            print(f"  💾 Checkpoint gespeichert: {ckpt_path}", flush=True)
+            latest_path = os.path.join(args.checkpoint_dir, "7b_checkpoint_latest.pt")
+            torch.save(ckpt_data, ckpt_path)
+            torch.save(ckpt_data, latest_path)
+            print(f"  💾 Checkpoint gespeichert: {ckpt_path} (Latest aktualisiert)", flush=True)
 
         step += 1
 
