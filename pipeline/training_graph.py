@@ -101,19 +101,24 @@ class KnowledgeNode:
                 self._cached_tokens = np.random.randint(0, 65536, size=needed * 4, dtype=np.int64)
                 self._token_cursor = 0
 
+        assert self._cached_tokens is not None
+        tokens_arr: np.ndarray = self._cached_tokens
+
         # Extract sequential batch slices
         x_list = []
         y_list = []
         for _ in range(batch_size):
             start = self._token_cursor
             end = start + seq_len
-            if end + 1 > len(self._cached_tokens):
+            if end + 1 > len(tokens_arr):
                 self._load_next_shard()
+                if self._cached_tokens is not None:
+                    tokens_arr = self._cached_tokens
                 start = 0
                 end = seq_len
 
-            x_seq = self._cached_tokens[start:end]
-            y_seq = self._cached_tokens[start + 1 : end + 1]
+            x_seq = tokens_arr[start:end]
+            y_seq = tokens_arr[start + 1 : end + 1]
             self._token_cursor += seq_len
 
             x_list.append(x_seq)
