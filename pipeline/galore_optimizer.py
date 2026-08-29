@@ -131,14 +131,13 @@ class GaLoreAdamW(Optimizer):
                     continue
 
                 grad = p.grad
-                state = self.state[p]
-
                 # State initialization
+                if p.ndim == 2 and p not in self.projectors:
+                    self.projectors[p] = GaLoreProjector(rank=rank, update_interval=update_interval)
+
                 if len(state) == 0:
                     state["step"] = 0
                     if p.ndim == 2:
-                        self.projectors[p] = GaLoreProjector(rank=rank, update_interval=update_interval)
-                        # State shapes are (m x r) instead of (m x n), saving 65-80% VRAM!
                         m, n = p.shape
                         r = min(rank, m, n)
                         proj_shape = (m, r) if m >= n else (r, n)
@@ -150,8 +149,6 @@ class GaLoreAdamW(Optimizer):
 
                 state["step"] += 1
                 step = state["step"]
-                exp_avg = state["exp_avg"]
-                exp_avg_sq = state["exp_avg_sq"]
 
                 # Weight decay
                 if weight_decay != 0:
@@ -161,6 +158,14 @@ class GaLoreAdamW(Optimizer):
                 if p in self.projectors:
                     proj = self.projectors[p]
                     low_rank_grad = proj.project(grad)
+
+                    # Ensure state tensor shapes match projected gradient shape
+                    if state["exp_avg"].shape != low_rank_grad.shape:
+                        state["exp_avg"] = torch.zeros_like(low_rank_grad)
+                        state["exp_avg_sq"] = torch.zeros_like(low_rank_grad)
+
+                    exp_avg = state["exp_avg"]
+                    exp_avg_sq = state["exp_avg_sq"]
 
                     # Update low-rank moments
                     exp_avg.mul_(beta1).add_(low_rank_grad, alpha=1 - beta1)
@@ -177,6 +182,9 @@ class GaLoreAdamW(Optimizer):
                     full_update = proj.project_back(low_rank_update, p.shape)
                     p.add_(-full_update)
                 else:
+                    exp_avg = state["exp_avg"]
+                    exp_avg_sq = state["exp_avg_sq"]
+
                     exp_avg.mul_(beta1).add_(grad, alpha=1 - beta1)
                     exp_avg_sq.mul_(beta2).addcmul_(grad, grad, value=1 - beta2)
 
