@@ -16,9 +16,12 @@ def _compute_robust_orthogonal_matrix(mat: torch.Tensor, r: int, mode: str = "ri
     
     CRITICAL: All computation done in float32 on CPU to avoid cusolver GPU instabilities.
     """
-    # Strategy 1: SVD on GPU (MUCH faster, reduces CPU load to 0%)
+    # Strategy 1: Fast GPU SVD
+    # Wir MÜSSEN den Cache leeren und .contiguous() aufrufen, sonst
+    # crasht cuSOLVER leise und fällt auf CPU zurück, was 11GB RAM frisst!
+    torch.cuda.empty_cache()
     try:
-        mat_gpu = mat.float().cuda()
+        mat_gpu = mat.float().cuda().contiguous()
         if mode == "right":
             _, _, Vh = torch.linalg.svd(mat_gpu, full_matrices=False)
             result = Vh[:r, :]
@@ -34,10 +37,11 @@ def _compute_robust_orthogonal_matrix(mat: torch.Tensor, r: int, mode: str = "ri
         torch.cuda.empty_cache()
         return res
     except Exception as e:
-        pass
+        print(f"  [Warnung] GPU SVD fehlgeschlagen ({e}), falle zurück auf CPU SVD...", flush=True)
     
     # Strategy 2: SVD with jitter on CPU
     try:
+        mat_cpu = mat.float().cpu()
         jitter = 1e-6 * torch.randn_like(mat_cpu)
         mat_jittered = mat_cpu + jitter
         if mode == "right":
