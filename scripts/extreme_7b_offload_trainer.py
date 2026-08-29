@@ -161,7 +161,7 @@ def train_30day_world_model():
     parser.add_argument("--gradient_accumulation_steps", type=int, default=8, help="Grad Accum Steps (Effektive Batch Size = 128)")
     parser.add_argument("--lr_max", type=float, default=4e-4, help="Maximale Lernrate")
     parser.add_argument("--lr_min", type=float, default=2e-5, help="Minimale Lernrate")
-    parser.add_argument("--checkpoint_dir", type=str, default="/home/benjamin/Bilder/checkpoints", help="Checkpoint-Ordner")
+    parser.add_argument("--checkpoint_dir", type=str, default="./checkpoints_7b", help="Checkpoint-Ordner")
     parser.add_argument("--use_moe", action="store_true", default=True, help="Nutze 1.2B Sparse MoE Architektur")
     args = parser.parse_args()
 
@@ -205,39 +205,63 @@ def train_30day_world_model():
 
     dataloader = DataLoader(dataset, batch_size=args.batch_size, num_workers=0)
 
-    # Modell initialisieren
-    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+    import torch.distributed as dist
+    from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
+    from torch.distributed.fsdp import CPUOffload
+    from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
+    from pipeline.moe_components import SparseMoELayer
+    
+    # Init distributed for 1 GPU
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "29500"
+    if not dist.is_initialized():
+        dist.init_process_group("nccl", rank=0, world_size=1)
 
-    if args.use_moe:
-        print("  - Modell-Architektur: 1.1B Sparse Mixture of Experts (BFloat16 / Top-2 Gating / 16 SwiGLU Experts)", flush=True)
-        model = MultiGranularMoE1B2Model(
-            vocab_size=vocab.size,
-            rank=64,
-            d_model=1024,
-            n_layers=16,
-            num_experts=16,
-            hidden_dim=2048,
-            max_seq_len=256,
-        ).to(device=device, dtype=torch.bfloat16)
-    else:
-        print("  - Modell-Architektur: Nemotron 300M Dense (SwiGLU + GQA + RoPE)", flush=True)
-        model = NemotronBitstreamLM(
-            vocab_size=vocab.size,
-            rank=64,
-            d_model=768,
-            n_layers=12,
-            n_heads=12,
-            n_kv_heads=4,
-            use_gradient_checkpointing=True,
-        ).to(device=device, dtype=torch.bfloat16)
-
+    print("  - Modell-Architektur: 7B Sparse Mixture of Experts (CPU Offload)", flush=True)
+    # 1. Initialize on CPU to avoid OOM
+    model = MultiGranularMoE1B2Model(
+        vocab_size=vocab.size,
+        rank=64,
+        d_model=2048,
+        n_layers=16,
+        num_experts=16,
+        hidden_dim=4096,
+        max_seq_len=256,
+    ).to("cpu", dtype=torch.bfloat16)
+    
     total_params = sum(p.numel() for p in model.parameters())
     print(f"  - Gesamte Parameter:  {total_params:,}", flush=True)
+
+    # 2. Wrap with FSDP
+    auto_wrap_policy = functools.partial(
+        transformer_auto_wrap_policy,
+        transformer_layer_cls={SparseMoELayer},
+    )
+    
+    model = FSDP(
+        model,
+        auto_wrap_policy=auto_wrap_policy,
+        cpu_offload=CPUOffload(offload_params=True),
+        device_id=torch.cuda.current_device(),
+        use_orig_params=True,
+        sync_module_states=True,
+    )
 
     # Optimizer mit GaLore Low-Rank
     optimizer = GaLoreAdamW(model.parameters(), lr=args.lr_max, weight_decay=0.01, rank=32)
 
-    # Auto-Resume von Checkpoint falls vorhanden
+    # 3. GaLore Per-Layer Hooking (System RAM Lebensretter!)
+    # Verhindert, dass 14 GB an Gradients im RAM gesammelt werden. 
+    # Sobald ein Layer berechnet wurde, springt GaLore an, updatet das Gewicht und verbrennt den Gradient.
+    def make_galore_hook(p, opt):
+        def hook(*args):
+            opt.step_param(p)
+            p.grad = None # RAM sofort freigeben!
+        return hook
+
+    for p in model.parameters():
+        if p.requires_grad:
+            p.register_post_accumulate_grad_hook(make_galore_hook(p, optimizer))
     latest_checkpoint = os.path.join(args.checkpoint_dir, "checkpoint_latest.pt")
     start_step = 0
     if os.path.exists(latest_checkpoint):
@@ -347,9 +371,14 @@ def train_30day_world_model():
                 step += 1
                 continue
 
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-            optimizer.step()
-            optimizer.zero_grad()
+            # Der Backward Pass feuert jetzt unsere GaLore-Hooks!
+            # Jedes Layer wird nach Berechnung sofort aktualisiert und aus dem RAM gelöscht.
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+
+            # optimizer.step() WIRD NICHT MEHR GLOBAL AUFGERUFEN! (Passiert in den Hooks)
+            optimizer.zero_grad(set_to_none=True)
 
             loss_val = accum_loss if not math.isnan(accum_loss) else loss_history[-1] if loss_history else 8.5
             loss_history.append(loss_val)

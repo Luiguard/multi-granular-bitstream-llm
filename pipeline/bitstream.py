@@ -154,6 +154,13 @@ class BitstreamDecoder:
         token_ids = cls.unpack_tokens(packed_bytes, header.token_count, header.bit_width)
         return header, token_ids
 
+    @classmethod
+    def read_header_only(cls, filepath: str) -> BitstreamHeader:
+        """Reads only the header of a bitstream file without unpacking data."""
+        with open(filepath, "rb") as f:
+            header_bytes = f.read(BitstreamHeader.HEADER_SIZE)
+            return BitstreamHeader.deserialize(header_bytes)
+
 
 class BitstreamDataset:
     """Manages batches of token IDs from bitstreams for training."""
