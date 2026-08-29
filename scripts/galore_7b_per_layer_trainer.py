@@ -125,7 +125,12 @@ def train_30day_world_model():
 
     print("  - Modell-Architektur: 7B Sparse Mixture of Experts (JIT Layer Offloading / GaLore Hooks)", flush=True)
     
-    # Modell direkt im RAM (CPU) erstellen (~13.7 GB)
+    # Modell direkt im RAM (CPU) erstellen (~19.7 GB)
+    # KRITISCH: Wir MÜSSEN den Default Dtype setzen, sonst baut PyTorch
+    # zuerst ein 39.4 GB großes Float32-Modell auf und crasht den RAM sofort!
+    old_dtype = torch.get_default_dtype()
+    torch.set_default_dtype(torch.bfloat16)
+    
     model = MultiGranularMoE7BModel(
         vocab_size=vocab.size,
         rank=64,
@@ -134,7 +139,9 @@ def train_30day_world_model():
         num_experts=16,
         hidden_dim=4096,
         max_seq_len=256,
-    ).to("cpu", dtype=torch.bfloat16)
+    )
+    
+    torch.set_default_dtype(old_dtype)
 
     total_params = sum(p.numel() for p in model.parameters())
     print(f"  - Gesamte Parameter:  {total_params:,}", flush=True)
