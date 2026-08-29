@@ -131,6 +131,8 @@ class GaLoreAdamW(Optimizer):
                     continue
 
                 grad = p.grad
+                state = self.state[p]
+
                 # State initialization
                 if p.ndim == 2 and p not in self.projectors:
                     self.projectors[p] = GaLoreProjector(rank=rank, update_interval=update_interval)
