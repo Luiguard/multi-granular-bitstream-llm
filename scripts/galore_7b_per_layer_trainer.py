@@ -223,6 +223,7 @@ def train_30day_world_model():
 
     print("\n🚀 Starte 7B Dauerlauf mit JIT Offloading & GaLore Hooks...", flush=True)
     for x, y in dataloader:
+        step_start_time = time.time()
         x, y = x.to(device), y.to(device)
         
         if step == 0:
@@ -250,26 +251,29 @@ def train_30day_world_model():
         for pg in optimizer.param_groups:
             pg["lr"] = current_lr
 
-        if step % 5 == 0:
-            elapsed = time.time() - start_time
-            tps = (step * args.batch_size * 128) / max(0.1, elapsed)
-            print(f"  [7B MoE · Step {step:06d}] Loss: {loss_val:.4f} | TPS: {int(tps)}", flush=True)
-            loss_history.append(loss_val)
-            tokens_processed += args.batch_size * 128
-            
-            update_30day_dashboard_telemetry(
-                status_file=status_file,
-                day_fraction=step / 1000000,
-                total_days=30.0,
-                step=step,
-                total_steps=1000000,
-                current_loss=loss_val,
-                loss_history=loss_history,
-                tokens_processed=tokens_processed,
-                tokens_per_sec=tps,
-                shards_count=len(dataloader.dataset),
-                current_lr=current_lr
-            )
+        tokens_processed += args.batch_size * 128
+        loss_history.append(loss_val)
+        
+        step_now = time.time()
+        step_duration = step_now - step_start_time if 'step_start_time' in locals() else (time.time() - start_time)
+        instant_tps = (args.batch_size * 128) / max(0.05, step_duration)
+        
+        # Schreibe JEDEN Step live in Konsole und Dashboard
+        print(f"  [7B MoE · Step {step:06d}] Loss: {loss_val:.4f} | TPS: {int(instant_tps)} | Step-Dauer: {step_duration:.1f}s", flush=True)
+        
+        update_30day_dashboard_telemetry(
+            status_file=status_file,
+            day_fraction=step / 1000000,
+            total_days=30.0,
+            step=step,
+            total_steps=1000000,
+            current_loss=loss_val,
+            loss_history=loss_history,
+            tokens_processed=tokens_processed,
+            tokens_per_sec=instant_tps,
+            shards_count=len(dataloader.dataset),
+            current_lr=current_lr
+        )
 
         if step > 0 and step % 500 == 0:
             os.makedirs(args.checkpoint_dir, exist_ok=True)
