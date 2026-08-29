@@ -84,7 +84,7 @@ class MultiGranularMoE7BModel(nn.Module):
         self.head_proj = nn.Linear(d_model, rank, bias=False)
         self.head_out = nn.Linear(rank, vocab_size, bias=False)
 
-    def forward(self, x: torch.Tensor):
+    def forward_hidden(self, x: torch.Tensor):
         B, T = x.shape
         compact = self.E_vocab(x)
         h = self.E_proj(compact)
@@ -112,8 +112,34 @@ class MultiGranularMoE7BModel(nn.Module):
             total_aux_loss = total_aux_loss + aux
 
         h = self.norm_final(h)
+        return h, total_aux_loss
+
+    def forward(self, x: torch.Tensor):
+        h, total_aux_loss = self.forward_hidden(x)
         logits = self.head_out(self.head_proj(h))
         return logits, total_aux_loss
+
+    def compute_loss(self, x: torch.Tensor, targets: torch.Tensor, chunk_size: int = 1024):
+        """Computes loss with Chunked Cross-Entropy over 65k vocabulary to prevent 3GB VRAM spikes."""
+        h, total_aux_loss = self.forward_hidden(x)
+        
+        h_flat = h.view(-1, self.d_model)
+        targets_flat = targets.view(-1)
+        total_tokens = h_flat.shape[0]
+        
+        total_ce_loss = 0.0
+        for i in range(0, total_tokens, chunk_size):
+            h_chunk = h_flat[i : i + chunk_size]
+            targets_chunk = targets_flat[i : i + chunk_size]
+            
+            # Project chunk (only ~134MB VRAM instead of 1.07GB!)
+            logits_chunk = self.head_out(self.head_proj(h_chunk))
+            chunk_ce = F.cross_entropy(logits_chunk, targets_chunk, reduction="sum")
+            total_ce_loss = total_ce_loss + chunk_ce
+            
+        ce_loss = total_ce_loss / max(1, total_tokens)
+        total_loss = ce_loss + 0.01 * total_aux_loss.float()
+        return total_loss, ce_loss, total_aux_loss
 
 
 def calculate_7b_parameters():

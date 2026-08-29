@@ -27,8 +27,8 @@ echo "🚀 Starte 7 Milliarden Parameter Trainer (GaLore & FSDP CPU-Offload)..."
 echo "--------------------------------------------------------"
 sleep 2
 
-# Starte den 7B Trainer direkt im sichtbaren Terminal
-PYTHONUNBUFFERED=1 PYTHONPATH=/home/benjamin/Bilder .venv/bin/python scripts/galore_7b_per_layer_trainer.py
+# Starte den 7B Trainer direkt im sichtbaren Terminal mit Defragmentierungs-Schutz
+PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True PYTHONUNBUFFERED=1 PYTHONPATH=/home/benjamin/Bilder .venv/bin/python scripts/galore_7b_per_layer_trainer.py
 
 echo "--------------------------------------------------------"
 echo "Trainer wurde beendet. Dieses Fenster schließt sich in 10 Sekunden."

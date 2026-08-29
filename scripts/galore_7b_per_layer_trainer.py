@@ -241,13 +241,8 @@ def train_30day_world_model():
         active_node = training_graph.nodes[active_node_id]
         
         if step == 0:
-            print(f"  ⏳ Erster Forward-Pass (8192 Tokens · {active_node.name})...", flush=True)
-        logits, aux_loss = model(x)
-        logits_flat = logits.view(-1, logits.size(-1))
-        y_flat = y.view(-1)
-        
-        ce_loss = F.cross_entropy(logits_flat, y_flat)
-        loss = ce_loss + 0.01 * aux_loss.float()
+            print(f"  ⏳ Erster Forward-Pass (8192 Tokens Chunked Head · {active_node.name})...", flush=True)
+        loss, ce_loss, aux_loss = model.compute_loss(x, y, chunk_size=1024)
         
         if step == 0:
             print(f"  ✅ Forward OK! Loss: {loss.item():.4f}. Starte Backward + GaLore Init...", flush=True)
