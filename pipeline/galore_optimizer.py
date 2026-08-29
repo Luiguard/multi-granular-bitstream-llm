@@ -305,10 +305,17 @@ class GaLoreAdamW(Optimizer):
 
         if len(state) == 0:
             state["step"] = 0
-            if p.ndim == 2:
-                m, n = p.shape
-                r = min(rank, m, n)
-            self._init_state(p, group)
+            if p.ndim == 2 and p in self.projectors:
+                # GaLore: initialize low-rank optimizer states lazily after first projection
+                # (will be resized on first use if needed)
+                proj = self.projectors[p]
+                dummy_grad = torch.zeros_like(p)
+                low_rank = proj.project(dummy_grad)
+                state["exp_avg"] = torch.zeros_like(low_rank, dtype=torch.float32)
+                state["exp_avg_sq"] = torch.zeros_like(low_rank, dtype=torch.float32)
+            else:
+                state["exp_avg"] = torch.zeros_like(p, dtype=torch.float32)
+                state["exp_avg_sq"] = torch.zeros_like(p, dtype=torch.float32)
         
         state["step"] += 1
         step = state["step"]
@@ -323,6 +330,13 @@ class GaLoreAdamW(Optimizer):
 
             exp_avg = state["exp_avg"]
             exp_avg_sq = state["exp_avg_sq"]
+            
+            # Shape guard: GaLore may change projection shape at update intervals
+            if exp_avg.shape != low_rank_grad.shape:
+                state["exp_avg"] = torch.zeros_like(low_rank_grad, dtype=torch.float32)
+                state["exp_avg_sq"] = torch.zeros_like(low_rank_grad, dtype=torch.float32)
+                exp_avg = state["exp_avg"]
+                exp_avg_sq = state["exp_avg_sq"]
 
             # Update low-rank moments in float32
             exp_avg.mul_(beta1).add_(low_rank_grad, alpha=1 - beta1)
