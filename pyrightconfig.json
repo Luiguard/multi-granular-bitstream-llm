@@ -1,0 +1,6 @@
+{
+  "venvPath": "/home/benjamin/Bilder",
+  "venv": ".venv",
+  "pythonVersion": "3.14",
+  "extraPaths": ["/home/benjamin/Bilder"]
+}
