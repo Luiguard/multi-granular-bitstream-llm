@@ -299,12 +299,14 @@ def train_30day_world_model():
 
         step += 1
 
-        # Hardware Heat Safety Check alle 200 Steps
-        if step % 200 == 0:
+        # Proaktive Hardware Heat Safety & Kühlung alle 50 Steps
+        if step % 50 == 0:
             temp = get_gpu_temperature()
-            if temp > 78:
-                print(f"⚠️ GPU-Temperatur {temp}°C erreicht! Kühle kurz ab...", flush=True)
-                time.sleep(2.0)
+            if temp >= 80:
+                print(f"⚠️ GPU-Temperatur {temp}°C erreicht! Aktive Abkühlpause (3s)...", flush=True)
+                time.sleep(3.0)
+            elif temp >= 76:
+                time.sleep(0.4)
 
         # Dashboard & Status Update alle 5 Steps
         if step % 5 == 0:

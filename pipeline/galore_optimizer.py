@@ -11,6 +11,36 @@ import torch
 from torch.optim import Optimizer
 
 
+def _compute_robust_orthogonal_matrix(mat: torch.Tensor, r: int, mode: str = "right") -> torch.Tensor:
+    """Computes robust orthogonal projection matrix with automatic QR and jitter fallbacks."""
+    mat_f = mat.float()
+    try:
+        if mode == "right":
+            _, _, Vh = torch.linalg.svd(mat_f, full_matrices=False)
+            return Vh[:r, :].to(mat.device).type_as(mat)
+        else:
+            U, _, _ = torch.linalg.svd(mat_f, full_matrices=False)
+            return U[:, :r].to(mat.device).type_as(mat)
+    except Exception:
+        try:
+            # Fallback 1: Tiny numerical jitter to break degenerate eigenvalues
+            jitter = 1e-5 * torch.randn_like(mat_f)
+            if mode == "right":
+                _, _, Vh = torch.linalg.svd(mat_f + jitter, full_matrices=False)
+                return Vh[:r, :].to(mat.device).type_as(mat)
+            else:
+                U, _, _ = torch.linalg.svd(mat_f + jitter, full_matrices=False)
+                return U[:, :r].to(mat.device).type_as(mat)
+        except Exception:
+            # Fallback 2: QR decomposition (guaranteed to converge unconditionally)
+            if mode == "right":
+                q, _ = torch.linalg.qr(mat_f.t())
+                return q[:, :r].t().to(mat.device).type_as(mat)
+            else:
+                q, _ = torch.linalg.qr(mat_f)
+                return q[:, :r].to(mat.device).type_as(mat)
+
+
 class GaLoreProjector:
     """Computes orthogonal low-rank projection matrix for gradient tensors."""
 
@@ -27,17 +57,13 @@ class GaLoreProjector:
         m, n = grad.shape
         r = min(self.rank, m, n)
 
-        # Update orthogonal projection matrix periodically via SVD
+        # Update orthogonal projection matrix periodically via robust SVD/QR
         if self.ortho_matrix is None or self.step_count % self.update_interval == 0:
             with torch.no_grad():
                 if m >= n:
-                    # Right projection
-                    _, _, Vh = torch.linalg.svd(grad.float(), full_matrices=False)
-                    self.ortho_matrix = Vh[:r, :].to(grad.device).type_as(grad)
+                    self.ortho_matrix = _compute_robust_orthogonal_matrix(grad, r, mode="right")
                 else:
-                    # Left projection
-                    U, _, _ = torch.linalg.svd(grad.float(), full_matrices=False)
-                    self.ortho_matrix = U[:, :r].to(grad.device).type_as(grad)
+                    self.ortho_matrix = _compute_robust_orthogonal_matrix(grad, r, mode="left")
 
         self.step_count += 1
 
