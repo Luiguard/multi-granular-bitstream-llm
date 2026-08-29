@@ -93,21 +93,21 @@ class MultiGranularMoE7BModel(nn.Module):
 
         total_aux_loss = 0.0
         for i in range(len(self.attn_layers)):
-            def layer_forward(hidden, attn, moe, norm1, norm2, rope):
-                attn_out = attn(norm1(hidden), rope=rope)
-                h_mid = hidden + attn_out
-                moe_out, aux = moe(norm2(h_mid))
-                return h_mid + moe_out, aux
+            def make_layer_forward(attn, moe, norm1, norm2, rope):
+                def layer_forward(hidden):
+                    attn_out = attn(norm1(hidden), rope=rope)
+                    h_mid = hidden + attn_out
+                    moe_out, aux = moe(norm2(h_mid))
+                    return h_mid + moe_out, aux
+                return layer_forward
+            
+            lf = make_layer_forward(self.attn_layers[i], self.moe_layers[i], self.norms1[i], self.norms2[i], self.rope)
             
             # Gradient Checkpointing keeps VRAM at ~800MB instead of 19.7GB!
             if h.requires_grad:
-                h, aux = checkpoint.checkpoint(
-                    layer_forward, h, self.attn_layers[i], self.moe_layers[i], 
-                    self.norms1[i], self.norms2[i], self.rope, 
-                    use_reentrant=False
-                )
+                h, aux = checkpoint.checkpoint(lf, h, use_reentrant=True)
             else:
-                h, aux = layer_forward(h, self.attn_layers[i], self.moe_layers[i], self.norms1[i], self.norms2[i], self.rope)
+                h, aux = lf(h)
             
             total_aux_loss = total_aux_loss + aux
 

@@ -308,30 +308,23 @@ class GaLoreAdamW(Optimizer):
             if p.ndim == 2:
                 m, n = p.shape
                 r = min(rank, m, n)
-                proj_shape = (m, r) if m >= n else (r, n)
-                state["exp_avg"] = torch.zeros(proj_shape, dtype=torch.float32, device=p.device)
-                state["exp_avg_sq"] = torch.zeros(proj_shape, dtype=torch.float32, device=p.device)
-            else:
-                state["exp_avg"] = torch.zeros_like(p, dtype=torch.float32)
-                state["exp_avg_sq"] = torch.zeros_like(p, dtype=torch.float32)
-
+            self._init_state(p, group)
+        
         state["step"] += 1
         step = state["step"]
 
+        grad = p.grad.float()
         if weight_decay != 0:
-            p.mul_(1.0 - lr * weight_decay)
+            grad = grad.add(p.float(), alpha=weight_decay)
 
         if p in self.projectors:
             proj = self.projectors[p]
             low_rank_grad = proj.project(grad).float()
 
-            if state["exp_avg"].shape != low_rank_grad.shape:
-                state["exp_avg"] = torch.zeros_like(low_rank_grad, dtype=torch.float32)
-                state["exp_avg_sq"] = torch.zeros_like(low_rank_grad, dtype=torch.float32)
-
             exp_avg = state["exp_avg"]
             exp_avg_sq = state["exp_avg_sq"]
 
+            # Update low-rank moments in float32
             exp_avg.mul_(beta1).add_(low_rank_grad, alpha=1 - beta1)
             exp_avg_sq.mul_(beta2).addcmul_(low_rank_grad, low_rank_grad, value=1 - beta2)
 
@@ -342,19 +335,30 @@ class GaLoreAdamW(Optimizer):
             step_size = lr / bias_correction1
             low_rank_update = (exp_avg / denom) * step_size
 
+            # Clamp update magnitude to prevent explosions
+            low_rank_update.clamp_(-1.0, 1.0)
+
+            # Project back to full rank space
             full_update = proj.project_back(low_rank_update, p.shape)
-            p.add_(full_update.to(p.dtype), alpha=-1.0)
+            p.add_(-full_update.to(dtype=p.dtype))
         else:
-            grad_fp32 = grad.float()
             exp_avg = state["exp_avg"]
             exp_avg_sq = state["exp_avg_sq"]
 
-            exp_avg.mul_(beta1).add_(grad_fp32, alpha=1 - beta1)
-            exp_avg_sq.mul_(beta2).addcmul_(grad_fp32, grad_fp32, value=1 - beta2)
+            grad_f = grad.float()
+            exp_avg.mul_(beta1).add_(grad_f, alpha=1 - beta1)
+            exp_avg_sq.mul_(beta2).addcmul_(grad_f, grad_f, value=1 - beta2)
 
             bias_correction1 = 1 - beta1 ** step
             bias_correction2 = 1 - beta2 ** step
 
             denom = (exp_avg_sq.sqrt() / math.sqrt(bias_correction2)).add_(eps)
             step_size = lr / bias_correction1
-            p.add_((exp_avg / denom).to(p.dtype), alpha=-step_size)
+            update = (exp_avg / denom) * step_size
+            update.clamp_(-1.0, 1.0)
+            p.add_(-update.to(dtype=p.dtype))
+            
+        # Zwinge den Garbage Collector sofort, die VRAM/RAM Referenzen freizugeben
+        import gc
+        gc.collect()
+        torch.cuda.empty_cache()
