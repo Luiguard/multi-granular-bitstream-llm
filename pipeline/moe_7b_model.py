@@ -17,7 +17,7 @@ from pipeline.mla_attention import MultiHeadLatentAttention
 
 
 class SparseMoELayer16(nn.Module):
-    def __init__(self, d_model: int = 2048, hidden_dim: int = 4096, num_experts: int = 16):
+    def __init__(self, d_model: int = 2048, hidden_dim: int = 4096, num_experts: int = 12):
         super().__init__()
         self.d_model = d_model
         self.num_experts = num_experts
@@ -56,7 +56,7 @@ class MultiGranularMoE7BModel(nn.Module):
         rank: int = 64,
         d_model: int = 2048,
         n_layers: int = 24,
-        num_experts: int = 16,
+        num_experts: int = 12,
         hidden_dim: int = 4096,
         max_seq_len: int = 4096,
     ):
@@ -122,7 +122,7 @@ def calculate_7b_parameters():
 
     total_p = sum(p.numel() for p in model.parameters())
     single_expert_p = sum(p.numel() for p in model.moe_layers[0].experts[0].parameters())
-    inactive_expert_p = 24 * 14 * single_expert_p
+    inactive_expert_p = 24 * 10 * single_expert_p
     active_p = total_p - inactive_expert_p
 
     print("=" * 80, flush=True)

@@ -136,7 +136,7 @@ def train_30day_world_model():
         rank=64,
         d_model=2048,
         n_layers=24,
-        num_experts=16,
+        num_experts=12,
         hidden_dim=4096,
         max_seq_len=256,
     )
