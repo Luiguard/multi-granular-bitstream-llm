@@ -211,7 +211,7 @@ def train_30day_world_model():
     start_time = time.time()
     step = 0
     loss_history = []
-    status_file = "/home/benjamin/Bilder/dashboard_metrics.json"
+    status_file = "/home/benjamin/Bilder/data/training_status.json"
     tokens_processed = 0
 
     print("\n🚀 Starte 7B Dauerlauf mit JIT Offloading & GaLore Hooks...", flush=True)
