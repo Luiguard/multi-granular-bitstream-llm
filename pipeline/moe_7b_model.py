@@ -58,7 +58,7 @@ class MultiGranularMoE7BModel(nn.Module):
         n_layers: int = 24,
         num_experts: int = 12,
         hidden_dim: int = 4096,
-        max_seq_len: int = 4096,
+        max_seq_len: int = 8192,
     ):
         super().__init__()
         self.vocab_size = vocab_size

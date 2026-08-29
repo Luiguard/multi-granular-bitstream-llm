@@ -147,13 +147,14 @@ def train_30day_world_model():
         n_layers=24,
         num_experts=12,
         hidden_dim=4096,
-        max_seq_len=256,
+        max_seq_len=8192,
     )
     
     torch.set_default_dtype(old_dtype)
 
     total_params = sum(p.numel() for p in model.parameters())
     print(f"  - Gesamte Parameter:  {total_params:,}", flush=True)
+    print("  - Native Kontextlänge: 8,192 Tokens (Llama-3 RoPE Scaling)", flush=True)
 
     # -------------------------------------------------------------------------
     # JIT LAYER OFFLOADING (Verhindert 100% jegliches OOM durch FSDP Overhead)
@@ -230,17 +231,17 @@ def train_30day_world_model():
     status_file = "/home/benjamin/Bilder/data/training_status.json"
     tokens_processed = 0
 
-    print("\n🚀 Starte 7B Dauerlauf mit Dynamischem Trainingsgraphen & GaLore Hooks...", flush=True)
+    print("\n🚀 Starte 7B Dauerlauf mit Dynamischem Trainingsgraphen (8192 Kontext) & GaLore...", flush=True)
     while step < 1000000:
         step_start_time = time.time()
         
-        # Dynamisches Sampling über den Wissensgraphen (Curriculum + Error-Remediation)
-        x, y, active_node_id = training_graph.sample_batch(batch_size=args.batch_size, seq_len=128)
+        # Dynamisches Sampling über den Wissensgraphen mit 8192 Tokens
+        x, y, active_node_id = training_graph.sample_batch(batch_size=args.batch_size, seq_len=8192)
         x, y = x.to(device), y.to(device)
         active_node = training_graph.nodes[active_node_id]
         
         if step == 0:
-            print(f"  ⏳ Erster Forward-Pass ({active_node.name})...", flush=True)
+            print(f"  ⏳ Erster Forward-Pass (8192 Tokens · {active_node.name})...", flush=True)
         logits, aux_loss = model(x)
         logits_flat = logits.view(-1, logits.size(-1))
         y_flat = y.view(-1)
@@ -249,11 +250,11 @@ def train_30day_world_model():
         loss = ce_loss + 0.01 * aux_loss.float()
         
         if step == 0:
-            print(f"  ✅ Forward OK! Loss: {loss.item():.4f}. Starte Backward + GaLore SVD Init...", flush=True)
+            print(f"  ✅ Forward OK! Loss: {loss.item():.4f}. Starte Backward + GaLore Init...", flush=True)
         # Backward pass automatically fires the GaLore hooks per-layer!
         loss.backward()
         if step == 0:
-            print("  ✅ Backward OK! Training läuft jetzt dynamisch über den Graph!", flush=True)
+            print("  ✅ Backward OK! 8192-Token Training läuft jetzt dynamisch über den Graph!", flush=True)
         
         # Free CUDA cache heavily to prevent VRAM fragmentation
         torch.cuda.empty_cache()
@@ -268,12 +269,12 @@ def train_30day_world_model():
         for pg in optimizer.param_groups:
             pg["lr"] = current_lr
 
-        tokens_processed += args.batch_size * 128
+        tokens_processed += args.batch_size * 8192
         loss_history.append(loss_val)
         
         step_now = time.time()
         step_duration = step_now - step_start_time
-        instant_tps = (args.batch_size * 128) / max(0.05, step_duration)
+        instant_tps = (args.batch_size * 8192) / max(0.05, step_duration)
         
         # Schreibe JEDEN Step live in Konsole und Dashboard mit Graph-Knoten Info
         node_tag = f"{active_node.name[:18]}"

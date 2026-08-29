@@ -17,22 +17,30 @@ import torch.utils.checkpoint as checkpoint
 
 
 class RotaryEmbedding(nn.Module):
-    """Rotary Position Embedding (RoPE) as used in Nemotron-4 and Llama-3."""
+    """Rotary Position Embedding (RoPE) as used in Nemotron-4 and Llama-3 (8192 context)."""
 
-    def __init__(self, dim: int, max_seq_len: int = 4096, theta: float = 10000.0):
+    def __init__(self, dim: int, max_seq_len: int = 8192, theta: float = 500000.0):
         super().__init__()
         self.dim = dim
+        self.max_seq_len = max_seq_len
+        self.theta = theta
         inv_freq = 1.0 / (theta ** (torch.arange(0, dim, 2).float() / dim))
         self.register_buffer("inv_freq", inv_freq, persistent=False)
 
         # Precompute cos and sin
-        t = torch.arange(max_seq_len, dtype=torch.float32)
+        self._build_cache(max_seq_len)
+
+    def _build_cache(self, seq_len: int):
+        t = torch.arange(seq_len, dtype=torch.float32)
         freqs = torch.outer(t, self.inv_freq)
         emb = torch.cat((freqs, freqs), dim=-1)
         self.register_buffer("cos_cached", emb.cos(), persistent=False)
         self.register_buffer("sin_cached", emb.sin(), persistent=False)
 
     def forward(self, q: torch.Tensor, k: torch.Tensor, seq_len: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        if seq_len > self.cos_cached.shape[0]:
+            self._build_cache(seq_len * 2)
+
         cos = self.cos_cached[:seq_len, None, :].to(device=q.device, dtype=q.dtype)
         sin = self.sin_cached[:seq_len, None, :].to(device=k.device, dtype=k.dtype)
 

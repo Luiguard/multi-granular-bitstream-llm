@@ -84,7 +84,7 @@ class KnowledgeNode:
                 else:
                     tokens = np.fromfile(shard_path, dtype=np.uint16).tolist()
 
-                if len(tokens) >= 128:
+                if len(tokens) >= 512:
                     self._cached_tokens = np.array(tokens, dtype=np.int64)
                     self._token_cursor = 0
                     return True
@@ -93,7 +93,7 @@ class KnowledgeNode:
 
         return False
 
-    def get_batch(self, batch_size: int = 1, seq_len: int = 128) -> Tuple[torch.Tensor, torch.Tensor]:
+    def get_batch(self, batch_size: int = 1, seq_len: int = 8192) -> Tuple[torch.Tensor, torch.Tensor]:
         needed = batch_size * (seq_len + 1)
         if self._cached_tokens is None or self._token_cursor + needed >= len(self._cached_tokens):
             if not self._load_next_shard():
@@ -271,7 +271,7 @@ class TrainingKnowledgeGraph:
             elif not prereqs_met and node.status != "MASTERED":
                 node.status = "LOCKED"
 
-    def sample_batch(self, batch_size: int = 1, seq_len: int = 128) -> Tuple[torch.Tensor, torch.Tensor, str]:
+    def sample_batch(self, batch_size: int = 1, seq_len: int = 8192) -> Tuple[torch.Tensor, torch.Tensor, str]:
         """Samples a training batch dynamically according to curriculum weights and remediation boost."""
         self.update_gating()
 
