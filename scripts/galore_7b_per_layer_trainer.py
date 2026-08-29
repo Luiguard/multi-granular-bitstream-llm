@@ -188,8 +188,23 @@ def train_30day_world_model():
         try:
             ckpt = torch.load(base_latest_ckpt, map_location="cpu")
             sd = ckpt["model_state_dict"] if (isinstance(ckpt, dict) and "model_state_dict" in ckpt) else ckpt
-            matched = model.load_state_dict(sd, strict=False)
-            print(f"  ✅ Basiswissen transferiert ({len(matched.missing_keys)} MoE-Expert-Parameter warm initialisiert).", flush=True)
+            
+            with torch.no_grad():
+                model_state = model.state_dict()
+                transferred_count = 0
+                for k, v in sd.items():
+                    if k in model_state:
+                        target = model_state[k]
+                        if target.shape == v.shape:
+                            target.copy_(v.to(dtype=target.dtype))
+                            transferred_count += 1
+                        elif target.dim() == v.dim() and all(t_dim >= v_dim for t_dim, v_dim in zip(target.shape, v.shape)):
+                            # Net2Net Progressive Upscaling (z. B. 1024 -> 2048 Kanäle)
+                            slices = tuple(slice(0, v_dim) for v_dim in v.shape)
+                            target[slices].copy_(v.to(dtype=target.dtype))
+                            transferred_count += 1
+                model.load_state_dict(model_state)
+            print(f"  ✅ Shape-Aware Warm-Start: {transferred_count} Gewichts-Tensoren (Embeddings & Köpfe) erfolgreich transferiert!", flush=True)
         except Exception as e:
             print(f"  ⚠️ Warnung beim Basismodell-Transfer: {e}", flush=True)
 
