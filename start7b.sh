@@ -15,7 +15,7 @@ pkill -f "dashboard/server.py"
 sleep 2
 
 echo "[2/3] Starte 100-Milliarden-Tokens-Pumpe (FineWeb-Edu) im Hintergrund..."
-nohup .venv/bin/python scripts/ingest_7b_massive_expansion.py > /home/benjamin/Bilder/ingestion_7b_background.log 2>&1 &
+nohup env PYTHONPATH=/home/benjamin/Bilder .venv/bin/python scripts/ingest_7b_massive_expansion.py > /home/benjamin/Bilder/ingestion_7b_background.log 2>&1 &
 echo "      -> Läuft (Logs: ingestion_7b_background.log)"
 
 echo "[3/3] Starte Dashboard auf http://localhost:7860 ..."
