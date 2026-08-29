@@ -110,8 +110,18 @@ class GaLoreProjector:
         m, n = grad.shape
         r = min(self.rank, m, n)
 
-        # Update orthogonal projection matrix periodically via robust SVD/QR
-        if self.ortho_matrix is None or self.step_count % self.update_interval == 0:
+        # Ultra-schnelle orthogonale Initialisierung bei Step 0 via QR (2 Sekunden statt 14 Minuten!)
+        if self.ortho_matrix is None:
+            with torch.no_grad():
+                if m >= n:
+                    rand_m = torch.randn(n, r, dtype=torch.float32, device=grad.device)
+                    q, _ = torch.linalg.qr(rand_m)
+                    self.ortho_matrix = q.t().to(dtype=grad.dtype)
+                else:
+                    rand_m = torch.randn(m, r, dtype=torch.float32, device=grad.device)
+                    q, _ = torch.linalg.qr(rand_m)
+                    self.ortho_matrix = q.to(dtype=grad.dtype)
+        elif self.step_count % self.update_interval == 0:
             with torch.no_grad():
                 if m >= n:
                     self.ortho_matrix = _compute_robust_orthogonal_matrix(grad, r, mode="right")
