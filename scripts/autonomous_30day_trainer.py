@@ -172,10 +172,11 @@ def train_30day_world_model():
     vocab = MultiGranularVocabulary.load_json(vocab_file)
     print(f"  - Vokabulargröße:     {vocab.size:,} Tokens (16-Bit Multi-Granular)", flush=True)
 
-    # Shard-Quellen (World Knowledge + FineWeb + Instructions + Code + Math/Bio + STEM Deep)
+    # Shard-Quellen (World Knowledge + STEM + Cyber/Web + Math/Bio + FineWeb + Code)
     shards_dirs = [
         "/home/benjamin/Bilder/data/world_knowledge/shards",
         "/home/benjamin/Bilder/data/stem_knowledge/shards",
+        "/home/benjamin/Bilder/data/cyber_web_knowledge/shards",
         "/home/benjamin/Bilder/data/biology_math/shards",
         "/home/benjamin/Bilder/data/shards",
         "/home/benjamin/Bilder/data/instructions/shards",
