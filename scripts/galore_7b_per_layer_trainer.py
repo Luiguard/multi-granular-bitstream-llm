@@ -225,6 +225,8 @@ def train_30day_world_model():
     for x, y in dataloader:
         x, y = x.to(device), y.to(device)
         
+        if step == 0:
+            print("  ⏳ Erster Forward-Pass (24 Layer JIT Offload)...", flush=True)
         logits, aux_loss = model(x)
         logits_flat = logits.view(-1, logits.size(-1))
         y_flat = y.view(-1)
@@ -232,8 +234,12 @@ def train_30day_world_model():
         ce_loss = F.cross_entropy(logits_flat, y_flat)
         loss = ce_loss + 0.01 * aux_loss.float()
         
+        if step == 0:
+            print(f"  ✅ Forward OK! Loss: {loss.item():.4f}. Starte Backward + GaLore SVD Init...", flush=True)
         # Backward pass automatically fires the GaLore hooks per-layer!
         loss.backward()
+        if step == 0:
+            print("  ✅ Backward OK! Training läuft jetzt!", flush=True)
         
         # Free CUDA cache heavily to prevent VRAM fragmentation
         torch.cuda.empty_cache()

@@ -305,17 +305,7 @@ class GaLoreAdamW(Optimizer):
 
         if len(state) == 0:
             state["step"] = 0
-            if p.ndim == 2 and p in self.projectors:
-                # GaLore: initialize low-rank optimizer states lazily after first projection
-                # (will be resized on first use if needed)
-                proj = self.projectors[p]
-                dummy_grad = torch.zeros_like(p)
-                low_rank = proj.project(dummy_grad)
-                state["exp_avg"] = torch.zeros_like(low_rank, dtype=torch.float32)
-                state["exp_avg_sq"] = torch.zeros_like(low_rank, dtype=torch.float32)
-            else:
-                state["exp_avg"] = torch.zeros_like(p, dtype=torch.float32)
-                state["exp_avg_sq"] = torch.zeros_like(p, dtype=torch.float32)
+            # States werden unten lazy initialisiert beim ersten echten Gradienten
         
         state["step"] += 1
         step = state["step"]
@@ -328,15 +318,13 @@ class GaLoreAdamW(Optimizer):
             proj = self.projectors[p]
             low_rank_grad = proj.project(grad).float()
 
-            exp_avg = state["exp_avg"]
-            exp_avg_sq = state["exp_avg_sq"]
-            
-            # Shape guard: GaLore may change projection shape at update intervals
-            if exp_avg.shape != low_rank_grad.shape:
+            # Lazy init + shape guard: init on first use or resize when GaLore rotates
+            if "exp_avg" not in state or state["exp_avg"].shape != low_rank_grad.shape:
                 state["exp_avg"] = torch.zeros_like(low_rank_grad, dtype=torch.float32)
                 state["exp_avg_sq"] = torch.zeros_like(low_rank_grad, dtype=torch.float32)
-                exp_avg = state["exp_avg"]
-                exp_avg_sq = state["exp_avg_sq"]
+
+            exp_avg = state["exp_avg"]
+            exp_avg_sq = state["exp_avg_sq"]
 
             # Update low-rank moments in float32
             exp_avg.mul_(beta1).add_(low_rank_grad, alpha=1 - beta1)
@@ -356,6 +344,11 @@ class GaLoreAdamW(Optimizer):
             full_update = proj.project_back(low_rank_update, p.shape)
             p.add_(-full_update.to(dtype=p.dtype))
         else:
+            # Lazy init for non-GaLore params
+            if "exp_avg" not in state:
+                state["exp_avg"] = torch.zeros_like(p, dtype=torch.float32)
+                state["exp_avg_sq"] = torch.zeros_like(p, dtype=torch.float32)
+
             exp_avg = state["exp_avg"]
             exp_avg_sq = state["exp_avg_sq"]
 
@@ -372,7 +365,5 @@ class GaLoreAdamW(Optimizer):
             update.clamp_(-1.0, 1.0)
             p.add_(-update.to(dtype=p.dtype))
             
-        # Zwinge den Garbage Collector sofort, die VRAM/RAM Referenzen freizugeben
-        import gc
-        gc.collect()
+        # VRAM sofort freigeben (aber KEIN gc.collect() — das war 1000x pro Step viel zu langsam!)
         torch.cuda.empty_cache()
