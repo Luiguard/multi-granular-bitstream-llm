@@ -158,6 +158,14 @@ async function fetchMetrics() {
   }
 }
 
+function formatTokens(count) {
+  if (!count || count === 0) return '0 Tokens';
+  if (count >= 1000000000) return (count / 1000000000).toFixed(2) + ' Mrd. Tokens';
+  if (count >= 1000000) return (count / 1000000).toFixed(2) + ' Mio. Tokens';
+  if (count >= 1000) return (count / 1000).toFixed(1) + 'k Tokens';
+  return count + ' Tokens';
+}
+
 function renderTrainingGraph(graphData, activeNodeName) {
   if (!graphData || !graphData.nodes) return;
 
@@ -195,12 +203,18 @@ function renderTrainingGraph(graphData, activeNodeName) {
     if (node.status === 'ACTIVE') badgeIcon = '⚡';
     if (node.status === 'MASTERED') badgeIcon = '✅';
 
+    const learnedTokens = (node.sample_count || 0) * 7168;
+
     box.innerHTML = `
       <div class="node-header">
         <span class="node-title">${node.name}</span>
         <span class="node-badge ${statusLower}">${badgeIcon} ${node.status}</span>
       </div>
       <p class="node-desc">${node.description}</p>
+      <div class="node-token-bar">
+        <span class="node-token-label">📚 Gelernt:</span>
+        <span class="node-token-value">${formatTokens(learnedTokens)} (${node.sample_count || 0} Batches)</span>
+      </div>
       <div class="node-stats">
         <span>Shards: ${node.total_shards}</span>
         <span>Loss: <strong class="node-loss">${node.moving_loss ? Number(node.moving_loss).toFixed(2) : '--'}</strong></span>
