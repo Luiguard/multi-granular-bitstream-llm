@@ -57,6 +57,8 @@ class WorldKnowledgeShardedDataset(IterableDataset):
             except Exception:
                 continue
 
+from pipeline.training_graph import build_default_training_graph
+
 def update_30day_dashboard_telemetry(
     status_file: str,
     day_fraction: float,
@@ -69,6 +71,8 @@ def update_30day_dashboard_telemetry(
     tokens_per_sec: float,
     shards_count: int,
     current_lr: float,
+    graph_state: Optional[Dict[str, Any]] = None,
+    active_node_name: str = "Foundation",
 ):
     progress_pct = (step / max(1, total_steps)) * 100.0
     remaining_seconds = max(0, (total_steps - step) / max(1.0, tokens_per_sec / 128))
@@ -96,6 +100,8 @@ def update_30day_dashboard_telemetry(
         "loss_history": safe_history if safe_history else [8.42],
         "total_world_tokens": tokens_processed,
         "learning_rate": current_lr,
+        "active_knowledge_node": active_node_name,
+        "training_graph": graph_state,
     }
 
     try:
@@ -119,13 +125,16 @@ def train_30day_world_model():
         vocab_file = "/home/benjamin/Bilder/vocab.json"
     vocab = MultiGranularVocabulary.load_json(vocab_file)
 
-    shards_dirs = ["/home/benjamin/Bilder/data/shards"]
-    dataset = WorldKnowledgeShardedDataset(shards_dirs, seq_len=128)
-    dataloader = DataLoader(dataset, batch_size=args.batch_size, num_workers=0)
+    print("  - Initialisiere Dynamischen Trainingsgraphen (Knowledge Curriculum DAG)...", flush=True)
+    training_graph = build_default_training_graph("/home/benjamin/Bilder")
+    total_shards_all = sum(n.total_shards for n in training_graph.nodes.values())
+    print(f"  - Geladene Wissens-Knoten: {len(training_graph.nodes)} Domänen ({total_shards_all} reale Shards, {len(training_graph.edges)} Kanten)", flush=True)
+    for n in training_graph.nodes.values():
+        print(f"    • [{n.status:<8}] {n.name:<30} ({n.total_shards} Shards)", flush=True)
 
     print("  - Modell-Architektur: 7B Sparse Mixture of Experts (JIT Layer Offloading / GaLore Hooks)", flush=True)
     
-    # Modell direkt im RAM (CPU) erstellen (~19.7 GB)
+    # Modell direkt im RAM (CPU) erstellen (~13.9 GB in bf16 bei 12 Experten)
     # KRITISCH: Wir MÜSSEN den Default Dtype setzen, sonst baut PyTorch
     # zuerst ein 39.4 GB großes Float32-Modell auf und crasht den RAM sofort!
     old_dtype = torch.get_default_dtype()
@@ -221,13 +230,17 @@ def train_30day_world_model():
     status_file = "/home/benjamin/Bilder/data/training_status.json"
     tokens_processed = 0
 
-    print("\n🚀 Starte 7B Dauerlauf mit JIT Offloading & GaLore Hooks...", flush=True)
-    for x, y in dataloader:
+    print("\n🚀 Starte 7B Dauerlauf mit Dynamischem Trainingsgraphen & GaLore Hooks...", flush=True)
+    while step < 1000000:
         step_start_time = time.time()
+        
+        # Dynamisches Sampling über den Wissensgraphen (Curriculum + Error-Remediation)
+        x, y, active_node_id = training_graph.sample_batch(batch_size=args.batch_size, seq_len=128)
         x, y = x.to(device), y.to(device)
+        active_node = training_graph.nodes[active_node_id]
         
         if step == 0:
-            print("  ⏳ Erster Forward-Pass (24 Layer JIT Offload)...", flush=True)
+            print(f"  ⏳ Erster Forward-Pass ({active_node.name})...", flush=True)
         logits, aux_loss = model(x)
         logits_flat = logits.view(-1, logits.size(-1))
         y_flat = y.view(-1)
@@ -240,12 +253,16 @@ def train_30day_world_model():
         # Backward pass automatically fires the GaLore hooks per-layer!
         loss.backward()
         if step == 0:
-            print("  ✅ Backward OK! Training läuft jetzt!", flush=True)
+            print("  ✅ Backward OK! Training läuft jetzt dynamisch über den Graph!", flush=True)
         
         # Free CUDA cache heavily to prevent VRAM fragmentation
         torch.cuda.empty_cache()
         
         loss_val = loss.item()
+        
+        # Melde Loss an den Wissensgraphen (triggert ggf. Remediation Backtracking)
+        training_graph.report_batch_loss(active_node_id, loss_val)
+        
         progress = step / 1000000
         current_lr = args.lr_min + 0.5 * (args.lr_max - args.lr_min) * (1.0 + math.cos(math.pi * progress))
         for pg in optimizer.param_groups:
@@ -255,11 +272,12 @@ def train_30day_world_model():
         loss_history.append(loss_val)
         
         step_now = time.time()
-        step_duration = step_now - step_start_time if 'step_start_time' in locals() else (time.time() - start_time)
+        step_duration = step_now - step_start_time
         instant_tps = (args.batch_size * 128) / max(0.05, step_duration)
         
-        # Schreibe JEDEN Step live in Konsole und Dashboard
-        print(f"  [7B MoE · Step {step:06d}] Loss: {loss_val:.4f} | TPS: {int(instant_tps)} | Step-Dauer: {step_duration:.1f}s", flush=True)
+        # Schreibe JEDEN Step live in Konsole und Dashboard mit Graph-Knoten Info
+        node_tag = f"{active_node.name[:18]}"
+        print(f"  [7B MoE · Step {step:06d}] [{node_tag:<18}] Loss: {loss_val:.4f} (Avg: {active_node.moving_loss:.2f}) | TPS: {int(instant_tps)} | Dauer: {step_duration:.1f}s", flush=True)
         
         update_30day_dashboard_telemetry(
             status_file=status_file,
@@ -271,14 +289,15 @@ def train_30day_world_model():
             loss_history=loss_history,
             tokens_processed=tokens_processed,
             tokens_per_sec=instant_tps,
-            shards_count=len(dataloader.dataset),
-            current_lr=current_lr
+            shards_count=total_shards_all,
+            current_lr=current_lr,
+            graph_state=training_graph.get_telemetry_state(),
+            active_node_name=active_node.name,
         )
 
         if step > 0 and step % 500 == 0:
             os.makedirs(args.checkpoint_dir, exist_ok=True)
             ckpt_path = os.path.join(args.checkpoint_dir, f"7b_checkpoint_step_{step}.pt")
-            # Unabhängig von FSDP können wir den lokalen state_dict speichern
             torch.save(model.state_dict(), ckpt_path)
             print(f"  💾 Checkpoint gespeichert: {ckpt_path}", flush=True)
 

@@ -148,9 +148,67 @@ async function fetchMetrics() {
       drawChart();
     }
 
+    // 4. Dynamic Training Knowledge Graph
+    if (data.training_graph) {
+      renderTrainingGraph(data.training_graph, data.active_knowledge_node);
+    }
+
   } catch (err) {
     console.error('Metrics fetch error:', err);
   }
+}
+
+function renderTrainingGraph(graphData, activeNodeName) {
+  if (!graphData || !graphData.nodes) return;
+
+  const container = document.getElementById('training-graph-container');
+  const masteryBadge = document.getElementById('graph-mastery-badge');
+  const activeTag = document.getElementById('active-node-tag');
+  const alertBox = document.getElementById('remediation-alert-box');
+  const alertText = document.getElementById('remediation-text');
+
+  if (masteryBadge) {
+    masteryBadge.textContent = `${graphData.mastered_count || 0}/${graphData.total_nodes || 6} Mastered · ${graphData.active_count || 1} Aktiv`;
+  }
+  if (activeTag && activeNodeName) {
+    activeTag.textContent = `Aktiv: ${activeNodeName}`;
+  }
+
+  if (alertBox && alertText) {
+    if (graphData.recent_remediations && graphData.recent_remediations.length > 0) {
+      alertBox.style.display = 'flex';
+      alertText.textContent = graphData.recent_remediations[graphData.recent_remediations.length - 1];
+    } else {
+      alertBox.style.display = 'none';
+    }
+  }
+
+  if (!container) return;
+
+  container.innerHTML = '';
+  graphData.nodes.forEach(node => {
+    const box = document.createElement('div');
+    const statusLower = (node.status || 'locked').toLowerCase();
+    box.className = `graph-node-box ${statusLower}`;
+
+    let badgeIcon = '🔒';
+    if (node.status === 'ACTIVE') badgeIcon = '⚡';
+    if (node.status === 'MASTERED') badgeIcon = '✅';
+
+    box.innerHTML = `
+      <div class="node-header">
+        <span class="node-title">${node.name}</span>
+        <span class="node-badge ${statusLower}">${badgeIcon} ${node.status}</span>
+      </div>
+      <p class="node-desc">${node.description}</p>
+      <div class="node-stats">
+        <span>Shards: ${node.total_shards}</span>
+        <span>Loss: <strong class="node-loss">${node.moving_loss ? Number(node.moving_loss).toFixed(2) : '--'}</strong></span>
+        ${node.remediation_boost > 1.05 ? `<span class="node-boost">Boost: ×${node.remediation_boost}</span>` : `<span>Target: ≤${node.mastery_threshold}</span>`}
+      </div>
+    `;
+    container.appendChild(box);
+  });
 }
 
 // Preset Helper
