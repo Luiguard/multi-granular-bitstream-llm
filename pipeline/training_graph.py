@@ -354,6 +354,23 @@ class TrainingKnowledgeGraph:
             "recent_remediations": self.remediation_log[-5:],
         }
 
+    def load_telemetry_state(self, state: Dict[str, Any]) -> None:
+        """Restores graph node statuses, sample counts, moving losses and remediation boosts from checkpoint."""
+        if not state or "nodes" not in state:
+            return
+        node_map = {n_data["id"]: n_data for n_data in state["nodes"]}
+        for node_id, n_data in node_map.items():
+            if node_id in self.nodes:
+                node = self.nodes[node_id]
+                node.status = n_data.get("status", node.status)
+                node.current_loss = float(n_data.get("current_loss", node.current_loss))
+                node.moving_loss = float(n_data.get("moving_loss", node.moving_loss))
+                node.sample_count = int(n_data.get("sample_count", node.sample_count))
+                node.remediation_boost = float(n_data.get("remediation_boost", node.remediation_boost))
+        if "recent_remediations" in state and isinstance(state["recent_remediations"], list):
+            self.remediation_log = state["recent_remediations"]
+        self.update_gating()
+
 
 def build_default_training_graph(base_dir: str = "/home/benjamin/Bilder") -> TrainingKnowledgeGraph:
     return TrainingKnowledgeGraph(base_dir=base_dir)

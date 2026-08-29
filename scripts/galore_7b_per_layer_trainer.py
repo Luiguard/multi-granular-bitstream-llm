@@ -118,7 +118,7 @@ def train_30day_world_model():
     parser.add_argument("--lr_max", type=float, default=4e-4)
     parser.add_argument("--lr_min", type=float, default=2e-5)
     parser.add_argument("--checkpoint_dir", type=str, default="/home/benjamin/Bilder/checkpoints")
-    parser.add_argument("--save_interval", type=int, default=25)
+    parser.add_argument("--save_interval", type=int, default=10)
     args = parser.parse_args()
     device = torch.device("cuda")
     os.makedirs(args.checkpoint_dir, exist_ok=True)
@@ -178,6 +178,9 @@ def train_30day_world_model():
                 step = ckpt.get("step", 0)
                 tokens_processed = ckpt.get("tokens_processed", step * 7168)
                 loss_history = ckpt.get("loss_history", [])
+                if "training_graph_state" in ckpt:
+                    training_graph.load_telemetry_state(ckpt["training_graph_state"])
+                    print("  🧠 Wissensgraph-Zustand (Knoten, Losses & Curricula) vollständig wiederhergestellt!", flush=True)
             else:
                 model.load_state_dict(ckpt, strict=False)
             print(f"  ✅ 7B Checkpoint erfolgreich geladen! Setze fort bei Step {step:,} ({tokens_processed:,} Tokens).", flush=True)
@@ -346,13 +349,18 @@ def train_30day_world_model():
                 "step": step,
                 "tokens_processed": tokens_processed,
                 "loss_history": loss_history[-100:],
+                "training_graph_state": training_graph.get_telemetry_state(),
                 "model_state_dict": model.state_dict(),
             }
             ckpt_path = os.path.join(args.checkpoint_dir, f"7b_checkpoint_step_{step}.pt")
             latest_path = os.path.join(args.checkpoint_dir, "7b_checkpoint_latest.pt")
+            temp_path = os.path.join(args.checkpoint_dir, "7b_checkpoint_temp.pt")
+            
+            # Atomarer Write: Verhindert beschädigte Dateien bei Stromausfall/Unterbrechung
+            torch.save(ckpt_data, temp_path)
+            os.replace(temp_path, latest_path)
             torch.save(ckpt_data, ckpt_path)
-            torch.save(ckpt_data, latest_path)
-            print(f"  💾 Checkpoint gespeichert: {ckpt_path} (Latest aktualisiert)", flush=True)
+            print(f"  💾 Checkpoint atomar gesichert: Step {step} ({tokens_processed:,} Tokens · Wissensgraph & Gewichte gesichert)", flush=True)
 
         step += 1
 
