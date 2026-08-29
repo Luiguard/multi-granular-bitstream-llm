@@ -55,14 +55,17 @@ class KnowledgeNode:
         self._token_cursor: int = 0
 
     def _discover_shards(self):
-        self.shard_files = []
+        existing_set = set(self.shard_files)
+        new_files = []
         for d in self.shard_dirs:
             if os.path.exists(d):
-                self.shard_files.extend(glob.glob(os.path.join(d, "*.mgbs")))
-                self.shard_files.extend(glob.glob(os.path.join(d, "*.shard")))
-        self.shard_files = sorted(list(set(self.shard_files)))
-        if self.shard_files:
-            random.shuffle(self.shard_files)
+                for ext in ("*.mgbs", "*.shard"):
+                    for f in glob.glob(os.path.join(d, ext)):
+                        if f not in existing_set:
+                            new_files.append(f)
+                            existing_set.add(f)
+        if new_files:
+            self.shard_files.extend(new_files)
 
     @property
     def total_shards(self) -> int:
@@ -327,6 +330,7 @@ class TrainingKnowledgeGraph:
         """Serializes current graph topology, nodes, edges, and mastery for dashboard telemetry."""
         nodes_data = []
         for n in self.nodes.values():
+            n._discover_shards()
             nodes_data.append({
                 "id": n.node_id,
                 "name": n.name,

@@ -327,6 +327,9 @@ def train_30day_world_model():
         node_tag = f"{active_node.name[:18]}"
         print(f"  [7B MoE · Step {step:06d}] [{node_tag:<18}] Loss: {loss_val:.4f} (Avg: {active_node.moving_loss:.2f}) | TPS: {int(instant_tps)} | Dauer: {step_duration:.1f}s", flush=True)
         
+        graph_telemetry = training_graph.get_telemetry_state()
+        live_shards_count = sum(n["total_shards"] for n in graph_telemetry["nodes"])
+        
         update_30day_dashboard_telemetry(
             status_file=status_file,
             day_fraction=step / 1000000,
@@ -337,9 +340,9 @@ def train_30day_world_model():
             loss_history=loss_history,
             tokens_processed=tokens_processed,
             tokens_per_sec=instant_tps,
-            shards_count=total_shards_all,
+            shards_count=live_shards_count,
             current_lr=current_lr,
-            graph_state=training_graph.get_telemetry_state(),
+            graph_state=graph_telemetry,
             active_node_name=active_node.name,
         )
 
