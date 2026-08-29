@@ -17,7 +17,7 @@ import functools
 from pipeline.vocabulary import MultiGranularVocabulary
 from pipeline.bitstream import BitstreamDecoder
 from pipeline.galore_optimizer import GaLoreAdamW
-from scripts.upcycle_to_moe import MultiGranularMoE1B2Model
+from pipeline.moe_7b_model import MultiGranularMoE7BModel
 
 class WorldKnowledgeShardedDataset(IterableDataset):
     def __init__(self, shards_dirs: List[str], seq_len: int = 128):
@@ -126,11 +126,11 @@ def train_30day_world_model():
     print("  - Modell-Architektur: 7B Sparse Mixture of Experts (JIT Layer Offloading / GaLore Hooks)", flush=True)
     
     # Modell direkt im RAM (CPU) erstellen (~13.7 GB)
-    model = MultiGranularMoE1B2Model(
+    model = MultiGranularMoE7BModel(
         vocab_size=vocab.size,
         rank=64,
         d_model=2048,
-        n_layers=16,
+        n_layers=24,
         num_experts=16,
         hidden_dim=4096,
         max_seq_len=256,
