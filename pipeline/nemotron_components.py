@@ -33,8 +33,8 @@ class RotaryEmbedding(nn.Module):
         self.register_buffer("sin_cached", emb.sin(), persistent=False)
 
     def forward(self, q: torch.Tensor, k: torch.Tensor, seq_len: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        cos = self.cos_cached[:seq_len, None, :].to(q.device)
-        sin = self.sin_cached[:seq_len, None, :].to(k.device)
+        cos = self.cos_cached[:seq_len, None, :].to(device=q.device, dtype=q.dtype)
+        sin = self.sin_cached[:seq_len, None, :].to(device=k.device, dtype=k.dtype)
 
         # Rotate half
         def rotate_half(x):
