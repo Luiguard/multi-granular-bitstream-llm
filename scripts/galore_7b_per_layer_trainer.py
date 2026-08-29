@@ -81,7 +81,7 @@ def update_30day_dashboard_telemetry(
 
     eta_str = f"{days_left:.1f} Tage ({hours_left:.0f}h verbleibend)"
 
-    safe_loss = float(current_loss) if (current_loss and not math.isnan(current_loss) and not math.isinf(current_loss)) else 8.42
+    safe_loss = current_loss if (current_loss and not math.isnan(current_loss) and not math.isinf(current_loss)) else 8.42
     safe_history = [
         round(float(v), 3) for v in loss_history[-30:]
         if (v is not None and not math.isnan(v) and not math.isinf(v))
