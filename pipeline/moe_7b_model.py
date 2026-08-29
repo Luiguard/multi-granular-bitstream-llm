@@ -89,12 +89,27 @@ class MultiGranularMoE7BModel(nn.Module):
         compact = self.E_vocab(x)
         h = self.E_proj(compact)
 
+        import torch.utils.checkpoint as checkpoint
+
         total_aux_loss = 0.0
         for i in range(len(self.attn_layers)):
-            h = h + self.attn_layers[i](self.norms1[i](h), rope=self.rope)
-            moe_out, aux = self.moe_layers[i](self.norms2[i](h))
-            h = h + moe_out
-            total_aux_loss += aux
+            def layer_forward(hidden, attn, moe, norm1, norm2, rope):
+                attn_out = attn(norm1(hidden), rope=rope)
+                h_mid = hidden + attn_out
+                moe_out, aux = moe(norm2(h_mid))
+                return h_mid + moe_out, aux
+            
+            # Gradient Checkpointing keeps VRAM at ~800MB instead of 19.7GB!
+            if h.requires_grad:
+                h, aux = checkpoint.checkpoint(
+                    layer_forward, h, self.attn_layers[i], self.moe_layers[i], 
+                    self.norms1[i], self.norms2[i], self.rope, 
+                    use_reentrant=False
+                )
+            else:
+                h, aux = layer_forward(h, self.attn_layers[i], self.moe_layers[i], self.norms1[i], self.norms2[i], self.rope)
+            
+            total_aux_loss = total_aux_loss + aux
 
         h = self.norm_final(h)
         logits = self.head_out(self.head_proj(h))
