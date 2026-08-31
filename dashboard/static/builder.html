@@ -36,40 +36,85 @@
 
   <!-- Main Studio Layout -->
   <main class="builder-layout">
-    <!-- Left Configuration Panel -->
+    <!-- Left Column: Interactive Configurator -->
     <section class="builder-config-panel">
-      <!-- Preset Quick Selection -->
+      <!-- 1. Basis-Modell Presets -->
       <div class="panel-section">
-        <h2 class="section-title">⚡ 1. Modell-Presets</h2>
+        <h2 class="section-title">⚡ 1. Basis-Modell Skalierung (100M bis 144B)</h2>
+        <p class="section-desc">Wähle die Basis-Größe eines einzelnen Experten-Kerns:</p>
         <div class="presets-grid" id="presets-container">
           <!-- Dynamically populated -->
         </div>
       </div>
 
-      <!-- Architecture Dimensions -->
+      <!-- 2. Experten-Multiplikator & Aufteilung -->
       <div class="panel-section">
-        <h2 class="section-title">📐 2. Topologie & Experten-Aufteilung</h2>
+        <h2 class="section-title">⚡ 2. Experten-Multiplikator & Aufteilung</h2>
+        <p class="section-desc">Entscheide, ob dein gewähltes Modell als 1 einziger Dense-Kern oder gesplittet auf bis zu 128 Experten läuft:</p>
 
         <!-- Mode Switch: 1 Experte (Dense) vs. Auf mehrere Experten gesplittet (MoE) -->
-        <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; padding: 14px; margin-bottom: 18px;">
+        <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; padding: 14px; margin-bottom: 16px;">
           <label style="font-weight: 700; font-size: 0.9rem; color: #38bdf8; display: block; margin-bottom: 8px;">🧠 Architektur-Auswahl:</label>
           <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-            <button type="button" id="btn-mode-dense" class="btn btn-secondary btn-sm" style="flex: 1; min-width: 240px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-              <span>🎯 <strong>1 Monolithischer Experte</strong> (100% Dense / 100M bis 144B)</span>
+            <button type="button" id="btn-mode-dense" class="btn btn-secondary btn-sm" style="flex: 1; min-width: 220px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <span>🎯 <strong>1 Monolithischer Experte</strong> (100% Dense)</span>
             </button>
-            <button type="button" id="btn-mode-moe" class="btn btn-secondary btn-sm active" style="flex: 1; min-width: 240px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-              <span>🧬 <strong>Auf mehrere Experten gesplittet</strong> (Sparse MoE / 2 bis 128 Exp)</span>
+            <button type="button" id="btn-mode-moe" class="btn btn-secondary btn-sm active" style="flex: 1; min-width: 220px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <span>🧬 <strong>Auf mehrere Experten gesplittet</strong> (Sparse MoE)</span>
             </button>
           </div>
         </div>
 
+        <div style="margin-bottom: 14px;">
+          <label for="select-experts" style="font-weight: 700; font-size: 0.88rem; color: #f1f5f9; display: block; margin-bottom: 6px;">⚡ Multiplikator: Wie viele Experten des Basis-Modells kombinieren?</label>
+          <div class="multiplier-bar" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+            <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="1">1x (Dense Single-Core)</button>
+            <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="2">2x</button>
+            <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="4">4x</button>
+            <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="8">8x</button>
+            <button type="button" class="btn-mult btn btn-secondary btn-sm active" data-mult="12">12x (Laptop Sweet-Spot)</button>
+            <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="16">16x</button>
+            <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="24">24x (Spliced 14B)</button>
+            <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="32">32x</button>
+            <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="64">64x (Frontier)</button>
+            <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="128">128x (Mega-Titan)</button>
+          </div>
+          <select id="select-experts" class="form-select" style="display: none;">
+            <option value="1">1x Experte (Monolithisch 100% Dense)</option>
+            <option value="2">2x Experten</option>
+            <option value="4">4x Experten (Edge MoE)</option>
+            <option value="8">8x Experten</option>
+            <option value="12" selected>12x Experten (Laptop Sweet-Spot)</option>
+            <option value="16">16x Experten</option>
+            <option value="24">24x Experten (14.2B Spliced)</option>
+            <option value="32">32x Experten</option>
+            <option value="64">64x Experten (70B Frontier)</option>
+            <option value="128">128x Experten (144B Mega-Titan)</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="group-top-k" style="max-width: 380px;">
+          <label for="select-top-k">Aktive Experten pro Wort / Token (Top-$k$)</label>
+          <select id="select-top-k" class="form-select">
+            <option value="1">Top-1 (Maximale Sparsity & Speed)</option>
+            <option value="2" selected>Top-2 (Optimales Blending ~500M aktiv)</option>
+            <option value="4">Top-4 (Hohe Reasoning-Kapazität)</option>
+            <option value="8">Top-8 (Deep Ensemble)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 3. Topologie & Dimensionen Feintuning -->
+      <div class="panel-section">
+        <h2 class="section-title">📐 3. Topologie & Dimensionen Feintuning</h2>
+        <p class="section-desc">Feineinstellung der Schichten, Attention-Heads und Vokabular-Breite:</p>
         <div class="form-grid">
           <div class="form-group">
             <label for="input-model-name">Modell-Name</label>
             <input type="text" id="input-model-name" class="form-input" value="Bitstream-Custom-MoE">
           </div>
           <div class="form-group">
-            <label for="select-d-model">Modell-Größe ($d_{model}$)</label>
+            <label for="select-d-model">Embedding Dimension ($d_{model}$)</label>
             <select id="select-d-model" class="form-select">
               <option value="512">512 (100M Single-Core)</option>
               <option value="768">768 (300M Single-Core)</option>
@@ -112,42 +157,6 @@
               <option value="128">128 Köpfe</option>
             </select>
           </div>
-          <div class="form-group" id="group-experts" style="grid-column: 1 / -1;">
-            <label for="select-experts">⚡ Experten-Multiplikator ($N_{\text{experts}}$): Wie viele Experten dieses Basis-Modells sollen kombiniert werden?</label>
-            <div class="multiplier-bar" style="display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0;">
-              <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="1">1x (Dense Single-Core)</button>
-              <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="2">2x</button>
-              <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="4">4x</button>
-              <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="8">8x</button>
-              <button type="button" class="btn-mult btn btn-secondary btn-sm active" data-mult="12">12x</button>
-              <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="16">16x</button>
-              <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="24">24x (Spliced)</button>
-              <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="32">32x</button>
-              <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="64">64x</button>
-              <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="128">128x (Mega-MoE)</button>
-            </div>
-            <select id="select-experts" class="form-select">
-              <option value="1">1x Experte (Monolithisch 100% Dense)</option>
-              <option value="2">2x Experten</option>
-              <option value="4">4x Experten (Edge MoE)</option>
-              <option value="8">8x Experten</option>
-              <option value="12" selected>12x Experten (Laptop Sweet-Spot)</option>
-              <option value="16">16x Experten</option>
-              <option value="24">24x Experten (14.2B Spliced)</option>
-              <option value="32">32x Experten</option>
-              <option value="64">64x Experten (70B Frontier)</option>
-              <option value="128">128x Experten (144B Mega-Titan)</option>
-            </select>
-          </div>
-          <div class="form-group" id="group-top-k">
-            <label for="select-top-k">Aktive Experten pro Token (Top-$k$)</label>
-            <select id="select-top-k" class="form-select">
-              <option value="1">Top-1 (Maximale Sparsity)</option>
-              <option value="2" selected>Top-2 (Optimales Blending)</option>
-              <option value="4">Top-4 (Hohe Kapazität)</option>
-              <option value="8">Top-8 (Deep Ensemble)</option>
-            </select>
-          </div>
           <div class="form-group">
             <label for="select-seq-len">Kontext-Länge ($T_{\text{max}}$)</label>
             <select id="select-seq-len" class="form-select">
@@ -169,9 +178,9 @@
         </div>
       </div>
 
-      <!-- Domain Specialization Matrix -->
+      <!-- 4. Domänen-Spezialisierungs-Matrix -->
       <div class="panel-section">
-        <h2 class="section-title">🧠 3. Domänen-Spezialisierungs-Matrix</h2>
+        <h2 class="section-title">🧠 4. Domänen-Spezialisierungs-Matrix</h2>
         <p class="section-desc">Weise den Experten-Clustern ihre Wissensgebiete zu:</p>
         <div class="domain-matrix-grid">
           <div class="domain-card active" data-domain="cyber">
@@ -211,7 +220,7 @@
 
       <!-- Guardrails & Alignment Studio -->
       <div class="panel-section">
-        <h2 class="section-title">🛡️ 4. Guardrails & RLVR-Ausrichtung</h2>
+        <h2 class="section-title">🛡️ 5. Guardrails & RLVR-Ausrichtung</h2>
         <div class="slider-grid">
           <div class="slider-group">
             <div class="slider-header">
@@ -242,7 +251,7 @@
 
       <!-- Target Hardware & Deployment Bundle -->
       <div class="panel-section">
-        <h2 class="section-title">🚀 5. Ziel-Hardware & Deployment-Schnittstellen</h2>
+        <h2 class="section-title">🚀 6. Ziel-Hardware & Deployment-Schnittstellen</h2>
         <p class="section-desc">Passe das generierte Paket an dein Gerät und deine Lieblings-Tools an:</p>
         
         <div class="form-grid" style="margin-bottom: 16px;">
