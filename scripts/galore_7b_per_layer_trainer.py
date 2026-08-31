@@ -12,12 +12,16 @@ from typing import Any, Dict, List, Optional
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, IterableDataset
+import gc
+import shutil
 import functools
+import numpy as np
 
 from pipeline.vocabulary import MultiGranularVocabulary
 from pipeline.bitstream import BitstreamDecoder
 from pipeline.galore_optimizer import GaLoreAdamW
 from pipeline.moe_7b_model import MultiGranularMoE7BModel
+from pipeline.nemotron_components import RotaryEmbedding
 
 class WorldKnowledgeShardedDataset(IterableDataset):
     def __init__(self, shards_dirs: List[str], seq_len: int = 128):
@@ -58,6 +62,7 @@ class WorldKnowledgeShardedDataset(IterableDataset):
                 continue
 
 from pipeline.training_graph import build_default_training_graph
+from pipeline.model_evaluator import ModelEvaluator
 
 def update_30day_dashboard_telemetry(
     status_file: str,
@@ -73,6 +78,7 @@ def update_30day_dashboard_telemetry(
     current_lr: float,
     graph_state: Optional[Dict[str, Any]] = None,
     active_node_name: str = "Foundation",
+    eval_metrics: Optional[Dict[str, Any]] = None,
 ):
     progress_pct = (step / max(1, total_steps)) * 100.0
     remaining_seconds = max(0, (total_steps - step) / max(1.0, tokens_per_sec / 128))
@@ -102,6 +108,7 @@ def update_30day_dashboard_telemetry(
         "learning_rate": current_lr,
         "active_knowledge_node": active_node_name,
         "training_graph": graph_state,
+        "eval_metrics": eval_metrics,
     }
 
     try:
@@ -115,17 +122,23 @@ def update_30day_dashboard_telemetry(
 def train_30day_world_model():
     parser = argparse.ArgumentParser(description="7B Extreme Laptop Trainer (GaLore Hooks)")
     parser.add_argument("--batch_size", type=int, default=1)
-    parser.add_argument("--lr_max", type=float, default=4e-4)
-    parser.add_argument("--lr_min", type=float, default=2e-5)
+    parser.add_argument("--lr_max", type=float, default=2.5e-4)
+    parser.add_argument("--lr_min", type=float, default=2.0e-5)
+    parser.add_argument("--warmup_steps", type=int, default=1000)
     parser.add_argument("--checkpoint_dir", type=str, default="/home/benjamin/Bilder/checkpoints")
     parser.add_argument("--save_interval", type=int, default=10)
+    parser.add_argument("--eval_interval", type=int, default=50)
+    parser.add_argument("--enable_night_schedule", action="store_true", default=True, help="Pausiert GPU-Training zwischen 21:00 und 09:00 Uhr")
+    parser.add_argument("--night_start_hour", type=int, default=21, help="Beginn der Nachtruhe (Stunde)")
+    parser.add_argument("--night_end_hour", type=int, default=9, help="Ende der Nachtruhe (Stunde)")
+    parser.add_argument("--test_quiet_minutes", type=int, default=0, help="Test-Ruhemodus für X Minuten aktivieren")
     args = parser.parse_args()
     device = torch.device("cuda")
     os.makedirs(args.checkpoint_dir, exist_ok=True)
 
-    vocab_file = "/home/benjamin/Bilder/data/vocab_65k.json"
+    vocab_file = "/home/benjamin/Bilder/data/vocab_262k.json"
     if not os.path.exists(vocab_file):
-        vocab_file = "/home/benjamin/Bilder/vocab.json"
+        vocab_file = "/home/benjamin/Bilder/data/vocab_65k.json"
     vocab = MultiGranularVocabulary.load_json(vocab_file)
 
     print("  - Initialisiere Dynamischen Trainingsgraphen (Knowledge Curriculum DAG)...", flush=True)
@@ -135,116 +148,129 @@ def train_30day_world_model():
     for n in training_graph.nodes.values():
         print(f"    • [{n.status:<8}] {n.name:<30} ({n.total_shards} Shards)", flush=True)
 
+    print("  - Initialisiere Held-Out Validierungs-Evaluator...", flush=True)
+    evaluator = ModelEvaluator()
+
     print("  - Modell-Architektur: 7B Sparse Mixture of Experts (JIT Layer Offloading / GaLore Hooks)", flush=True)
     
-    # Modell direkt im RAM (CPU) erstellen (~13.9 GB in bf16 bei 12 Experten)
-    # KRITISCH: Wir MÜSSEN den Default Dtype setzen, sonst baut PyTorch
-    # zuerst ein 39.4 GB großes Float32-Modell auf und crasht den RAM sofort!
-    old_dtype = torch.get_default_dtype()
-    torch.set_default_dtype(torch.bfloat16)
-    
-    model = MultiGranularMoE7BModel(
-        vocab_size=vocab.size,
-        rank=64,
-        d_model=2048,
-        n_layers=24,
-        num_experts=12,
-        hidden_dim=4096,
-        max_seq_len=7168,
-    )
-    
-    torch.set_default_dtype(old_dtype)
-
-    total_params = sum(p.numel() for p in model.parameters())
-    print(f"  - Gesamte Parameter:  {total_params:,}", flush=True)
-    print("  - Native Kontextlänge: 7,168 Tokens (Llama-3 RoPE Scaling)", flush=True)
-
     # -------------------------------------------------------------------------
-    # CHECKPOINT RESUME & PRE-TRAINED WARM-START
+    # CHECKPOINT RESUME & PRE-TRAINED WARM-START (ZERO-RAM META INIT & MMAP)
     # -------------------------------------------------------------------------
     step = 0
     tokens_processed = 0
     loss_history = []
+    latest_eval_metrics = None
     
     moe_latest_ckpt = os.path.join(args.checkpoint_dir, "7b_checkpoint_latest.pt")
     base_latest_ckpt = os.path.join(args.checkpoint_dir, "checkpoint_latest.pt")
     
     if os.path.exists(moe_latest_ckpt):
-        print(f"  🔄 Lade existierenden 7B Checkpoint: {moe_latest_ckpt}...", flush=True)
+        print(f"  🔄 Initialisiere 7B Meta-Modell & lade Checkpoint via Zero-RAM mmap: {moe_latest_ckpt}...", flush=True)
+        with torch.device("meta"):
+            model = MultiGranularMoE7BModel(
+                vocab_size=vocab.size,
+                rank=64,
+                d_model=2048,
+                n_layers=24,
+                num_experts=12,
+                hidden_dim=4096,
+                max_seq_len=7168,
+            )
+        model.rope = RotaryEmbedding(dim=64, max_seq_len=7168)
+        
         try:
-            ckpt = torch.load(moe_latest_ckpt, map_location="cpu")
-            if isinstance(ckpt, dict) and "model_state_dict" in ckpt:
-                model.load_state_dict(ckpt["model_state_dict"], strict=False)
+            ckpt = torch.load(moe_latest_ckpt, map_location="cpu", mmap=True, weights_only=False)
+            sd = ckpt["model_state_dict"] if (isinstance(ckpt, dict) and "model_state_dict" in ckpt) else ckpt
+            model.load_state_dict(sd, assign=True)
+            if isinstance(ckpt, dict):
                 step = ckpt.get("step", 0)
                 tokens_processed = ckpt.get("tokens_processed", step * 7168)
                 loss_history = ckpt.get("loss_history", [])
+                latest_eval_metrics = ckpt.get("latest_eval_metrics")
                 if "training_graph_state" in ckpt:
                     training_graph.load_telemetry_state(ckpt["training_graph_state"])
                     print("  🧠 Wissensgraph-Zustand (Knoten, Losses & Curricula) vollständig wiederhergestellt!", flush=True)
-            else:
-                model.load_state_dict(ckpt, strict=False)
-            print(f"  ✅ 7B Checkpoint erfolgreich geladen! Setze fort bei Step {step:,} ({tokens_processed:,} Tokens).", flush=True)
+                
+                # Restore RNG states if present
+                if "rng_states" in ckpt and ckpt["rng_states"]:
+                    try:
+                        rng = ckpt["rng_states"]
+                        if "torch" in rng and rng["torch"] is not None:
+                            torch.set_rng_state(rng["torch"])
+                        if "cuda" in rng and rng["cuda"] is not None and torch.cuda.is_available():
+                            torch.cuda.set_rng_state(rng["cuda"])
+                    except Exception:
+                        pass
+                
+                current_total_samples = sum(n.sample_count for n in training_graph.nodes.values())
+                if step > current_total_samples:
+                    missing_samples = step - current_total_samples
+                    training_graph.nodes["node_0_foundation"].sample_count += missing_samples
+                    training_graph.update_gating()
+            del ckpt, sd
+            gc.collect()
+            print(f"  ✅ 7B Checkpoint via Zero-RAM mmap erfolgreich geladen! Setze fort bei Step {step:,} ({tokens_processed:,} Tokens).", flush=True)
         except Exception as e:
             print(f"  ⚠️ Warnung beim Laden von {moe_latest_ckpt}: {e}", flush=True)
-    elif os.path.exists(base_latest_ckpt):
-        print(f"  🌱 Initialisiere Warm-Start aus Basismodell-Checkpoint: {base_latest_ckpt}...", flush=True)
-        try:
-            ckpt = torch.load(base_latest_ckpt, map_location="cpu")
-            sd = ckpt["model_state_dict"] if (isinstance(ckpt, dict) and "model_state_dict" in ckpt) else ckpt
-            
-            with torch.no_grad():
-                model_state = model.state_dict()
-                transferred_count = 0
-                for k, v in sd.items():
-                    if k in model_state:
-                        target = model_state[k]
-                        if target.shape == v.shape:
-                            target.copy_(v.to(dtype=target.dtype))
-                            transferred_count += 1
-                        elif target.dim() == v.dim() and all(t_dim >= v_dim for t_dim, v_dim in zip(target.shape, v.shape)):
-                            # Net2Net Progressive Upscaling (z. B. 1024 -> 2048 Kanäle)
-                            slices = tuple(slice(0, v_dim) for v_dim in v.shape)
-                            target[slices].copy_(v.to(dtype=target.dtype))
-                            transferred_count += 1
-                model.load_state_dict(model_state)
-            print(f"  ✅ Shape-Aware Warm-Start: {transferred_count} Gewichts-Tensoren (Embeddings & Köpfe) erfolgreich transferiert!", flush=True)
-        except Exception as e:
-            print(f"  ⚠️ Warnung beim Basismodell-Transfer: {e}", flush=True)
+    else:
+        old_dtype = torch.get_default_dtype()
+        torch.set_default_dtype(torch.bfloat16)
+        model = MultiGranularMoE7BModel(
+            vocab_size=vocab.size,
+            rank=64,
+            d_model=2048,
+            n_layers=24,
+            num_experts=12,
+            hidden_dim=4096,
+            max_seq_len=7168,
+        )
+        torch.set_default_dtype(old_dtype)
+        
+        if os.path.exists(base_latest_ckpt):
+            print(f"  🌱 Initialisiere Warm-Start aus Basismodell-Checkpoint: {base_latest_ckpt}...", flush=True)
+            try:
+                ckpt = torch.load(base_latest_ckpt, map_location="cpu", mmap=True, weights_only=False)
+                sd = ckpt["model_state_dict"] if (isinstance(ckpt, dict) and "model_state_dict" in ckpt) else ckpt
+                with torch.no_grad():
+                    model_state = model.state_dict()
+                    for k, v in sd.items():
+                        if k in model_state and model_state[k].shape == v.shape:
+                            model_state[k].copy_(v.to(dtype=model_state[k].dtype))
+                del ckpt, sd
+            except Exception as e:
+                print(f"  ⚠️ Warnung beim Warm-Start: {e}", flush=True)
 
-    # -------------------------------------------------------------------------
-    # JIT LAYER OFFLOADING (Verhindert 100% jegliches OOM durch FSDP Overhead)
-    # -------------------------------------------------------------------------
-    import torch.nn.functional as F
-    
+    # JIT LAYER OFFLOADING
     class OffloadedLinear(torch.nn.Module):
-        def __init__(self, linear_layer: torch.nn.Linear):
+        def __init__(self, linear_layer):
             super().__init__()
-            # Wir stehlen die Original-Parameter (0 Byte Overhead)
-            self.weight = linear_layer.weight
-            self.bias = linear_layer.bias
+            self.in_features = linear_layer.in_features
+            self.out_features = linear_layer.out_features
+            self.weight = torch.nn.Parameter(linear_layer.weight.data.to(torch.bfloat16).pin_memory(), requires_grad=True)
+            self.bias = torch.nn.Parameter(linear_layer.bias.data.to(torch.bfloat16).pin_memory(), requires_grad=True) if linear_layer.bias is not None else None
             
         def forward(self, x):
-            # Schicht zieht sich kurz in den VRAM
             w_gpu = self.weight.to(x.device, non_blocking=True)
             b_gpu = self.bias.to(x.device, non_blocking=True) if self.bias is not None else None
-            # Ausführung auf GPU, Autograd trackt den Rückweg zur CPU automatisch!
             return F.linear(x, w_gpu, b_gpu)
 
     class OffloadedEmbedding(torch.nn.Module):
-        def __init__(self, emb_layer: torch.nn.Embedding):
+        def __init__(self, emb_layer):
             super().__init__()
-            self.weight = emb_layer.weight
+            self.num_embeddings = emb_layer.num_embeddings
+            self.embedding_dim = emb_layer.embedding_dim
+            self.weight = torch.nn.Parameter(emb_layer.weight.data.to(torch.bfloat16).pin_memory(), requires_grad=True)
             
         def forward(self, x):
             w_gpu = self.weight.to(x.device, non_blocking=True)
             return F.embedding(x, w_gpu)
 
     class OffloadedLayerNorm(torch.nn.Module):
-        def __init__(self, norm_layer: torch.nn.LayerNorm):
+        def __init__(self, norm_layer):
             super().__init__()
-            self.weight = norm_layer.weight
-            self.bias = norm_layer.bias
             self.normalized_shape = norm_layer.normalized_shape
+            self.weight = torch.nn.Parameter(norm_layer.weight.data.to(torch.bfloat16).pin_memory(), requires_grad=True) if norm_layer.weight is not None else None
+            self.bias = torch.nn.Parameter(norm_layer.bias.data.to(torch.bfloat16).pin_memory(), requires_grad=True) if norm_layer.bias is not None else None
             self.eps = norm_layer.eps
             
         def forward(self, x):
@@ -254,7 +280,9 @@ def train_30day_world_model():
 
     def convert_to_offloaded(module):
         for name, child in module.named_children():
-            if isinstance(child, torch.nn.Linear):
+            if name in ["head_proj", "head_out", "E_proj"]:
+                child.to(device)
+            elif isinstance(child, torch.nn.Linear):
                 setattr(module, name, OffloadedLinear(child))
             elif isinstance(child, torch.nn.Embedding):
                 setattr(module, name, OffloadedEmbedding(child))
@@ -268,11 +296,13 @@ def train_30day_world_model():
 
     optimizer = GaLoreAdamW(model.parameters(), lr=args.lr_max, weight_decay=0.01, rank=32)
 
-    # PER-LAYER GALORE HOOKS
+    # PER-LAYER GALORE HOOKS MIT GRADIENT CLIPPING (MAX NORM = 1.0)
     def make_galore_hook(p, opt):
         def hook(*args):
+            if p.grad is not None:
+                torch.nn.utils.clip_grad_norm_([p], max_norm=1.0)
             opt.step_param(p)
-            p.grad = None # FREE RAM INSTANTLY
+            p.grad = None  # FREE RAM INSTANTLY
         return hook
 
     for p in model.parameters():
@@ -282,9 +312,57 @@ def train_30day_world_model():
     model.train()
     start_time = time.time()
     status_file = "/home/benjamin/Bilder/data/training_status.json"
+    test_quiet_until = (time.time() + args.test_quiet_minutes * 60) if args.test_quiet_minutes > 0 else None
 
     print("\n🚀 Starte 7B Dauerlauf mit Dynamischem Trainingsgraphen (7168 Kontext) & GaLore...", flush=True)
+    if args.enable_night_schedule:
+        print(f"🌙 Nachtruhe-Automatik aktiv: Täglich von {args.night_start_hour}:00 bis {args.night_end_hour}:00 Uhr (GPU-Standby & 0% GPU-Last).", flush=True)
+    if test_quiet_until:
+        print(f"🔇 20-Minuten Akustik-Test aktiviert: GPU pausiert sofort bis {time.strftime('%H:%M:%S', time.localtime(test_quiet_until))}.", flush=True)
+
     while step < 1000000:
+        # Prüfe auf Nachtruhe (21:00 - 09:00 Uhr) oder temporären Akustik-Test
+        now_ts = time.time()
+        now_hour = time.localtime().tm_hour
+        in_test = (test_quiet_until is not None and now_ts < test_quiet_until)
+        in_regular_night = (now_hour >= args.night_start_hour or now_hour < args.night_end_hour) if args.enable_night_schedule else False
+
+        if in_test or in_regular_night:
+            pause_reason = "20-Minuten Akustik-Test" if in_test else f"Nachtruhe ({args.night_start_hour}:00 - {args.night_end_hour}:00 Uhr)"
+            torch.cuda.empty_cache()
+            gc.collect()
+            print(f"\n🌙 [RUHEMODUS AKTIV] GPU-Training pausiert ({pause_reason}).", flush=True)
+            print("   💤 GPU VRAM freigegeben, 0% GPU-Last, Lüfter kühlen ab. Nur Shard-Erstellung läuft auf Low-CPU.\n", flush=True)
+
+            while True:
+                now_ts = time.time()
+                now_hour = time.localtime().tm_hour
+                in_test = (test_quiet_until is not None and now_ts < test_quiet_until)
+                in_regular_night = (now_hour >= args.night_start_hour or now_hour < args.night_end_hour) if args.enable_night_schedule else False
+                if not in_test and not in_regular_night:
+                    print(f"\n☀️ [AUFWACH-MODUS] Ruhephase beendet ({pause_reason}). Reaktiviere GPU-Training bei Step {step}...\n", flush=True)
+                    break
+
+                graph_telemetry = training_graph.get_telemetry_state()
+                live_shards_count = sum(n["total_shards"] for n in graph_telemetry["nodes"])
+                update_30day_dashboard_telemetry(
+                    status_file=status_file,
+                    day_fraction=step / 1000000,
+                    total_days=30.0,
+                    step=step,
+                    total_steps=1000000,
+                    tokens_per_sec=0.0,
+                    current_loss=loss_history[-1] if loss_history else 8.0,
+                    shards_count=live_shards_count,
+                    loss_history=loss_history,
+                    tokens_processed=tokens_processed,
+                    current_lr=current_lr if 'current_lr' in locals() else args.lr_min,
+                    graph_state=graph_telemetry,
+                    active_node_name=f"💤 Ruhemodus ({pause_reason})",
+                    eval_metrics=latest_eval_metrics,
+                )
+                time.sleep(10)
+
         step_start_time = time.time()
         
         # Dynamisches Sampling über den Wissensgraphen mit 7168 Tokens
@@ -292,27 +370,27 @@ def train_30day_world_model():
         x, y = x.to(device), y.to(device)
         active_node = training_graph.nodes[active_node_id]
         
-        if step == 0:
-            print(f"  ⏳ Erster Forward-Pass (7168 Tokens Chunked Head · {active_node.name})...", flush=True)
-        loss, ce_loss, aux_loss = model.compute_loss(x, y, chunk_size=1024)
+        torch.cuda.empty_cache()
+        loss, ce_loss, aux_loss = model.compute_loss(x, y, chunk_size=128)
         
-        if step == 0:
-            print(f"  ✅ Forward OK! Loss: {loss.item():.4f}. Starte Backward + GaLore Init...", flush=True)
         # Backward pass automatically fires the GaLore hooks per-layer!
         loss.backward()
-        if step == 0:
-            print("  ✅ Backward OK! 7168-Token Training läuft jetzt dynamisch über den Graph!", flush=True)
         
         # Free CUDA cache heavily to prevent VRAM fragmentation
         torch.cuda.empty_cache()
         
         loss_val = loss.item()
         
-        # Melde Loss an den Wissensgraphen (triggert ggf. Remediation Backtracking)
-        training_graph.report_batch_loss(active_node_id, loss_val)
+        # Melde Loss an den Wissensgraphen mit aktuellem Step (Anti-Thrashing Cooldown)
+        training_graph.report_batch_loss(active_node_id, loss_val, current_step=step)
         
-        progress = step / 1000000
-        current_lr = args.lr_min + 0.5 * (args.lr_max - args.lr_min) * (1.0 + math.cos(math.pi * progress))
+        # Linear Warmup (1.000 Steps) gefolgt von sanftem Cosine Decay
+        if step < args.warmup_steps:
+            current_lr = args.lr_min + (args.lr_max - args.lr_min) * (step / max(1, args.warmup_steps))
+        else:
+            progress = (step - args.warmup_steps) / max(1, 1000000 - args.warmup_steps)
+            current_lr = args.lr_min + 0.5 * (args.lr_max - args.lr_min) * (1.0 + math.cos(math.pi * progress))
+
         for pg in optimizer.param_groups:
             pg["lr"] = current_lr
 
@@ -323,6 +401,12 @@ def train_30day_world_model():
         step_duration = step_now - step_start_time
         instant_tps = (args.batch_size * 7168) / max(0.05, step_duration)
         
+        # Periodische Held-Out Validierung (alle 50 Steps)
+        if step > 0 and step % args.eval_interval == 0:
+            eval_res = evaluator.evaluate_model(model, device, num_batches=4, seq_len=512, step=step)
+            latest_eval_metrics = eval_res
+            print(f"  📊 [HELD-OUT EVALUATION · Step {step:06d}] Val-Loss: {eval_res['val_loss']:.4f} | Perplexität (PPL): {eval_res['perplexity']:.1f} | Acc: {eval_res['accuracy_pct']}%", flush=True)
+
         # Schreibe JEDEN Step live in Konsole und Dashboard mit Graph-Knoten Info
         node_tag = f"{active_node.name[:18]}"
         print(f"  [7B MoE · Step {step:06d}] [{node_tag:<18}] Loss: {loss_val:.4f} (Avg: {active_node.moving_loss:.2f}) | TPS: {int(instant_tps)} | Dauer: {step_duration:.1f}s", flush=True)
@@ -344,6 +428,7 @@ def train_30day_world_model():
             current_lr=current_lr,
             graph_state=graph_telemetry,
             active_node_name=active_node.name,
+            eval_metrics=latest_eval_metrics,
         )
 
         if step > 0 and step % args.save_interval == 0:
@@ -353,16 +438,47 @@ def train_30day_world_model():
                 "tokens_processed": tokens_processed,
                 "loss_history": loss_history[-100:],
                 "training_graph_state": training_graph.get_telemetry_state(),
+                "latest_eval_metrics": latest_eval_metrics,
                 "model_state_dict": model.state_dict(),
+                "rng_states": {
+                    "torch": torch.get_rng_state(),
+                    "cuda": torch.cuda.get_rng_state() if torch.cuda.is_available() else None,
+                    "random": random.getstate(),
+                    "numpy": np.random.get_state()
+                }
             }
-            ckpt_path = os.path.join(args.checkpoint_dir, f"7b_checkpoint_step_{step}.pt")
             latest_path = os.path.join(args.checkpoint_dir, "7b_checkpoint_latest.pt")
             temp_path = os.path.join(args.checkpoint_dir, "7b_checkpoint_temp.pt")
             
-            # Atomarer Write: Verhindert beschädigte Dateien bei Stromausfall/Unterbrechung
+            # Atomarer Write: Verhindert beschädigte Dateien bei Unterbrechung
             torch.save(ckpt_data, temp_path)
             os.replace(temp_path, latest_path)
-            torch.save(ckpt_data, ckpt_path)
+
+            # Nur alle 10 Schritte einen benannten Checkpoint anlegen und ältere aufräumen
+            if step % (args.save_interval * 2) == 0 or step % 500 == 0:
+                ckpt_path = os.path.join(args.checkpoint_dir, f"7b_checkpoint_step_{step}.pt")
+                try:
+                    shutil.copyfile(latest_path, ckpt_path)
+                except Exception:
+                    pass
+
+                # Checkpoint Retention: Behalte Meilensteine (alle 500 Steps) + letzte 3 Step-Checkpoints
+                try:
+                    all_step_ckpts = sorted(glob.glob(os.path.join(args.checkpoint_dir, "7b_checkpoint_step_*.pt")),
+                                            key=lambda p: int(p.split("_step_")[-1].replace(".pt", "")) if "_step_" in p else 0)
+                    if len(all_step_ckpts) > 3:
+                        for old_ckpt in all_step_ckpts[:-3]:
+                            step_num = int(old_ckpt.split("_step_")[-1].replace(".pt", ""))
+                            if step_num % 500 != 0:  # Meilensteine behalten
+                                try:
+                                    os.remove(old_ckpt)
+                                except Exception:
+                                    pass
+                except Exception:
+                    pass
+
+            del ckpt_data
+            gc.collect()
             print(f"  💾 Checkpoint atomar gesichert: Step {step} ({tokens_processed:,} Tokens · Wissensgraph & Gewichte gesichert)", flush=True)
 
         step += 1

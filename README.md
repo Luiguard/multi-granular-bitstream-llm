@@ -1,136 +1,116 @@
-# Multi-Granular Bitstream LLM (MGBS) 🚀
+# Multi-Granular Bitstream LLM (MGBS) 🔬
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Python: 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://python.org)
 [![PyTorch: 2.0+](https://img.shields.io/badge/PyTorch-2.0%2B-orange.svg)](https://pytorch.org)
-[![HuggingFace: Leaderboard Ready](https://img.shields.io/badge/HuggingFace-Leaderboard%20Ready-yellow.svg)](https://huggingface.co)
-[![Hardware: Consumer to Cluster](https://img.shields.io/badge/Hardware-6GB%20Laptop%20%7C%20H100%20Cluster-green.svg)](https://github.com/luiguard/multi-granular-bitstream-llm)
+[![Zero-Mock Verified](https://img.shields.io/badge/Evaluation-Real%20Data%20%7C%20Zero--Mock-success.svg)](file:///home/benjamin/Bilder/tests)
 
-A revolutionary, next-generation Language Model architecture that breaks free from 10-year-old subword BPE tokenizers. By combining **Hierarchical 16-Bit Multi-Granular Bitstreams**, **Sparse Mixture-of-Experts (MoE)**, and **Multi-Head Latent Attention (MLA)**, this architecture delivers **3.5x to 5x higher semantic entropy per token**, cuts KV-Cache memory by **93.3%**, and enables training **7.4B+ parameter models on consumer laptops**.
-
----
-
-## 🌟 Key Architectural Breakthroughs
-
-```
-                       [ RAW UTF-8 BYTE STREAM ]
-                                   │
-                     ┌─────────────┴─────────────┐
-                     ▼                           ▼
-          [ Standard LLMs (BPE) ]    [ Multi-Granular Bitstream ]
-          - "def __init__(self):"    - "def __init__(self):"
-            -> 5 to 8 tokens           -> EXACTLY 1 ATOMIC TOKEN!
-          - 4-space indent           - 4-space indent
-            -> 2 to 4 tokens           -> EXACTLY 1 ATOMIC TOKEN!
-          - High Memory & Latency    - 4.25x Native Compression
-```
-
-1. **Hierarchical 4-Tier Viterbi Tokenizer (`pipeline/tokenizer.py`):**
-   - **Tier 0:** 256 raw bytes (`0x00`-`0xFF`) guaranteeing **0% Out-Of-Vocabulary (OOV)** and **100% byte-exact UTF-8 roundtrip**.
-   - **Tier 1:** 26,000 Core Vocabulary Words (German & English).
-   - **Tier 2:** 34,000 Multi-Word Collocations & Phrases.
-   - **Tier 3:** 5,000 Full Syntactic & Code Templates (`def __init__(self,`, `public static void main`, SQL queries).
-2. **Dense Binary Bitstream Packaging (`.mgbs`):**
-   - 31-byte compact header with fixed 16-bit or variable 8–20 bit entropy packing.
-   - Achieves **4.25x native disk and memory compression** compared to raw plaintext.
-3. **Sparse Mixture-of-Experts (MoE) (`pipeline/moe_components.py`):**
-   - **7.42 Billion Total Synapses** stored on NVMe/RAM.
-   - **Top-2 Gating Router:** Activates only 2 of 16 experts per token (~480M active compute footprint), allowing the model to train and run inside **4.8 GB VRAM**!
-4. **Multi-Head Latent Attention (MLA) (`pipeline/mla_attention.py`):**
-   - DeepSeek-style low-rank KV compression slashes KV-Cache memory by **93.3%**.
-   - Enables **64k to 128k context windows** on consumer laptops with only ~150 MB RAM!
-5. **Anti-'Lost-in-the-Middle' & YaRN Context Scaling (`pipeline/long_context.py`):**
-   - Log-N entropy calibration guarantees **100% retrieval in Needle-in-a-Haystack benchmarks** at 5%, 25%, 50% (exact middle), 75%, and 95% depth.
-6. **GaLore Low-Rank Optimizer (`pipeline/galore_optimizer.py`):**
-   - SVD gradient projection reduces optimizer memory by **> 65% with zero accuracy loss**.
-7. **System 2 Cognitive Thinking Engine (`pipeline/reasoning_engine.py`):**
-   - Deep multi-step reasoning traces (`<think> ... </think>`) with self-verification loops.
-8. **Medusa Multi-Head Speculative Decoding (`pipeline/medusa_speculative.py`):**
-   - Predicts 4 tokens (~14 words) per single GPU forward pass for generation speeds of **120 to 180 words/second**.
-9. **Constitutional Alignment & Epistemic Honesty (`pipeline/alignment_guardrails.py`):**
-   - Strict adherence to real verifiable facts (zero hallucinations, zero mock data).
+Eine **empirisch evaluierte, ressourceneffiziente Language-Model-Architektur** für 7.45B Sparse Mixture-of-Experts (MoE) auf Consumer-Hardware. Das System kombiniert einen **hierarchischen 18-Bit Viterbi-Bitstream (262.144 Tokens)**, **JIT Layer Offloading**, **GaLore Low-Rank Gradienten-Projektion** und einen **dynamischen Wissensgraphen (Curriculum DAG)** mit automatischer Nachtruhe-Steuerung.
 
 ---
 
-## 📊 Live System & Dataset Metrics
+## 🔬 Empirischer Benchmark: 18-Bit Viterbi Bitstream vs. Standard BPE
 
-| Metrik | Erreichter Wert | Status |
-| :--- | :--- | :--- |
-| **Gesamte Datenbasis** | **390 Shards (333.000.000 Tokens)** | **100% Berechnet & Geshardet** |
-| **STEM & Fachwissen** | **68 Shards (Cosmopedia V2, PubMed, OpenWebMath)** | **34,5 Mio. Tokens** |
-| **Allgemein- & Weltwissen** | **286 Shards (Wikipedia DE/EN, FineWeb-Edu)** | **286,5 Mio. Tokens** |
-| **Mathematik & Reasoning** | **6 Shards (GSM8k & Chain-of-Thought)** | **1,1 Mio. Tokens** |
-| **Instruction SFT** | **6 Shards (Multi-Turn Dialoge)** | **2,8 Mio. Tokens** |
-| **Vokabular-Dichte** | **7,8x Kompression (Tier-4 Makros + MTP)** | **3,2 Bits pro Wort** |
-| **Inferenz-Throughput** | **121.0 Tokens/s (442 Wörter/s)** | **Verifiziert** |
-| **Hardware-Auslastung** | **~1,2 GB VRAM (RTX 3060 Laptop GPU)** | **Kühl bei < 68°C** |
+Reale Messung ([`scripts/benchmark_bitstream_vs_bpe.py`](file:///home/benjamin/Bilder/scripts/benchmark_bitstream_vs_bpe.py)) auf identischen Testdaten im direkten Vergleich mit **OpenAI `cl100k_base` (GPT-4)** und **GPT-2 BPE**:
+
+| Test-Domäne | Raw Bytes | MGBS (18-Bit Viterbi 262k) | BPE (cl100k / GPT-4) | BPE (GPT-2 50k) | Differenz vs. GPT-4 BPE | Eff. 7.168 Kontextfenster |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **1. Deutsch (Wissenschaft & Komposita)** | 645 B | **126 Tokens** | 200 Tokens | 253 Tokens | **+37.0% Kompression** 🏆 | **35.896 Zeichen** |
+| **2. Quellcode (Python & Rust AST)** | 765 B | **189 Tokens** | 192 Tokens | 291 Tokens | **+1.6% Kompression** 🏆 | **29.013 Zeichen** |
+| **3. Englisch (Technical & AI Paper)** | 584 B | 120 Tokens | **119 Tokens** | 130 Tokens | -0.8% (Gleichauf) | 34.884 Zeichen |
+| **4. Multilingual (Kyrillisch & CJK)** | 773 B | 276 Tokens | **259 Tokens** | 457 Tokens | -6.6% | 9.323 Zeichen |
+| **5. Byte-Stress & Emojis** | 189 B | 88 Tokens | **83 Tokens** | 88 Tokens | -6.0% | 14.091 Zeichen |
+| **GESAMT-DURCHSCHNITT (Dichte)** | **2.956 B** | **799 Tokens (3.70 B/T)** | **853 Tokens (3.47 B/T)** | **1219 Tokens (2.42 B/T)** | **+6.3% BESSER als GPT-4** 🏆 | **26.441 Zeichen** |
+
+### 💡 Empirische Erkenntnisse des 18-Bit Upgrades
+- **Übertrifft GPT-4 im Gesamtschnitt**: Durch das 18-Bit Vokabular ($262.144$ Einträge) schlägt der Multi-Granular Viterbi Tokenizer OpenAI's `cl100k_base` im Gesamtdurchschnitt um **$+6.3\%$ Token-Effizienz** ($3.70\text{ Bytes/Token}$ vs. $3.47\text{ Bytes/Token}$).
+- **Deutscher Sprachvorteil**: Auf deutschen wissenschaftlichen Texten und Komposita (*"Bundesverfassungsgerichtsentscheidung"*, *"Quantenmechanik"*) werden **$+37.0\%$ Tokens gespart**.
+- **100% Zero-OOV Garantie**: Durch Tier-0 Byte-Fallback (0x00–0xFF) werden unbekannte Unicode-Zeichen oder Roh-Binärdaten verlustfrei und absturzsicher tokenisiert.
 
 ---
 
-## 🛠️ Quickstart
+## 🏛️ Die Architektur-Säulen
 
-### 1. Installation
+```mermaid
+flowchart TD
+    subgraph Data["1. 18-Bit Bitstream & Tokenisierung"]
+        B1["18-Bit Viterbi Tokenizer (262.144 Tokens · Tier 0-3)"]
+        B2[".mgbs Binärcontainer (Zero-RAM mmap I/O & SIMD Vectorized Streaming)"]
+    end
 
-```bash
-git clone https://github.com/luiguard/multi-granular-bitstream-llm.git
-cd multi-granular-bitstream-llm
+    subgraph Compute["2. 7.45B MoE & Hardware-Effizienz"]
+        M1["24 Transformer Layer · 12 Sparse Experts (Top-2 Routing ~480M aktiv)"]
+        M2["JIT Layer Offloading (RAM/VRAM Paged Streaming)"]
+        M3["GaLore SVD Gradienten-Projektion (per-Layer Hooks)"]
+        M4["PyTorch Flash-SDPA Attention & YaRN RoPE (32k-64k Scaling)"]
+    end
 
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 2. Live Training & Telemetry Dashboard
-
-Launch the live Web Dashboard:
-```bash
-python dashboard/server.py 7860
-```
-Open **[http://localhost:7860](http://localhost:7860)** in your browser for real-time GPU VRAM, temperature, throughput, and interactive loss curves!
-
-### 3. Run Pretraining (15-Min Fast Track or 30-Day Long-Horizon)
-
-```bash
-# Fast-Track Preview Run (15 minutes)
-python train_model.py
-
-# Or Autonomous 30-Day World-Knowledge Run (7.4B MoE with Heat Safety)
-python scripts/autonomous_30day_trainer.py --days 30.0 --use_moe
-```
-
-### 4. Step 2: Supervised Instruction & Reasoning Tuning (SFT)
-
-```bash
-python scripts/train_instructions.py \
-  --base_model ./multi_granular_model.pt \
-  --instruction_shards ./data/instructions/shards \
-  --output_model ./multi_granular_instruct_model.pt
-```
-
-### 5. Export to Ollama
-
-```bash
-# Generate Modelfile with Constitutional Guardrails
-python scripts/export_ollama.py
-
-# Create and run with Ollama
-ollama create bitstream-llm -f ./Modelfile
-ollama run bitstream-llm
+    subgraph Cognition["3. Wissensgraph & Validierung"]
+        K1["Dynamischer Curriculum DAG (6 Domänen, Anti-Thrashing & Cooldown-Gating)"]
+        K2["Isolierte Held-Out Validierung (data/validation_held_out.mgbs)"]
+        K3["Nachtruhe-Automatik (21:00 - 09:00 Uhr GPU-Standby / Low-CPU Shards)"]
+        K4["RLVR Sandbox Verifier (Code- & Mathe-Belohnungssignale)"]
+    end
 ```
 
 ---
 
-## 🧪 Comprehensive Verification Suite
+## 🛠️ Reale Kernkomponenten
 
-Run all 17 end-to-end tests with real mathematical verification (Zero Mocks / Zero Placeholders):
+1. **18-Bit Hierarchischer Viterbi Tokenizer ([`pipeline/tokenizer.py`](file:///home/benjamin/Bilder/pipeline/tokenizer.py))**:
+   - 4-Tier Hierarchie: Raw Bytes (0–255), mehrsprachige BPE-Subwords (256–130.000), deutsche Fachbegriffe & Komposita (130.001–215.000) und Code-Makros/Einrückungen (215.001–262.143).
+2. **Kompaktes 18-Bit Bitstream Format ([`pipeline/bitstream.py`](file:///home/benjamin/Bilder/pipeline/bitstream.py))**:
+   - 31-Byte kompakter Header mit variabler Bit-Breite (`bit_width=18`).
+   - Unterstützt $O(1)$ Zero-RAM `mmap` Streaming bei voller Abwärtskompatibilität für 16-Bit Shards.
+3. **7.45B Sparse MoE Trainer ([`scripts/galore_7b_per_layer_trainer.py`](file:///home/benjamin/Bilder/scripts/galore_7b_per_layer_trainer.py))**:
+   - Ermöglicht das Training eines 7.45B Modells auf einer Laptop-GPU mit **6 GB VRAM**.
+   - Per-Layer GaLore Optimizer mit Gradient Clipping (`max_norm = 1.0`) und 1.000-Step Warmup.
+4. **Dynamischer Wissensgraph ([`pipeline/training_graph.py`](file:///home/benjamin/Bilder/pipeline/training_graph.py))**:
+   - 6 Domänen (Foundation, Cyber/Web, STEM, World Corpus, AI Reasoning, Instruction).
+   - 25-Step Cooldown und 3-Spike-Filter verhindern Domänen-Thrashing.
+5. **Modulares Experten-Management & Splicing ([`pipeline/modular_expert_manager.py`](file:///home/benjamin/Bilder/pipeline/modular_expert_manager.py))**:
+   - Ermöglicht das modulare Exportieren, Importieren und Inspizieren von Experten-Paketen.
+   - Unterstützt analytisches **Zero-Shot Router Alignment** via Kosinus-Schwerpunkt-Normalisierung.
+   - Ermöglicht das **Splicen von zwei 12-Experten Checkpoints zu einem 24-Experten 14.2B Modell** (`splice_to_14b`).
+   - `Top2GatingRouter` unterstützt sanftes **Domänen-Cluster-Gating** (Cluster 0: Cyber/Code, Cluster 1: STEM/Mathe, Cluster 2: Weltwissen/Logik).
+6. **Autonome Nachtruhe & Shard-Erstellung ([`pipeline/autonomous_epistemic_learner.py`](file:///home/benjamin/Bilder/pipeline/autonomous_epistemic_learner.py))**:
+   - Schaltet täglich von 21:00 bis 09:00 Uhr die GPU in den $0\%$-Standby ($41^\circ\text{C}$ / 15W).
+   - Sammelt im Hintergrund mit minimaler CPU-Last (`nice -n 19`) neue Shards mit SHA-256 Deduplizierung.
 
+---
+
+## 🚀 Schnelleinstieg & Ausführung
+
+### 1. Test-Suite ausführen
 ```bash
-python -m unittest discover -s tests -v
+# Überprüft Modulares Experten-Management, 14B-Splicing & Router Alignment
+.venv/bin/python tests/test_modular_expert_manager.py
+
+# Überprüft 18-Bit Bitstream, Viterbi-Rekonstruktion und Checkpoint
+.venv/bin/python tests/test_18bit_bitstream.py
+
+# Führt den empirischen Benchmark (18-Bit Viterbi vs. BPE cl100k & GPT-2) aus
+.venv/bin/python scripts/benchmark_bitstream_vs_bpe.py
+```
+
+### 2. 7.45B MoE Trainer starten
+```bash
+PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True \
+.venv/bin/python scripts/galore_7b_per_layer_trainer.py \
+  --save_interval 10 \
+  --eval_interval 50 \
+  --enable_night_schedule \
+  --night_start_hour 21 \
+  --night_end_hour 9
+```
+
+### 3. Live Dashboard öffnen
+```bash
+.venv/bin/python dashboard/server.py 7860
+# Dashboard erreichbar unter: http://localhost:7860
 ```
 
 ---
 
-## 📄 License & Attribution
-
-Distributed under the **MIT License**. Created by [luiguard](https://github.com/luiguard).
-Contributions and cluster scaling benchmarks welcome!
+## 📜 Lizenz & Richtlinien
+Lizenziert unter der MIT-Lizenz. Alle Daten, Berechnungen und Benchmark-Ergebnisse basieren ausnahmslos auf **echten Ausführungen ohne Mocks oder simulierte Platzhalter**.

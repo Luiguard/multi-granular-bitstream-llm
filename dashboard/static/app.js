@@ -116,8 +116,10 @@ async function fetchMetrics() {
 
     updateElement('eta-value', data.eta_str || '--:-- min');
     updateElement('throughput-value', `${(data.tokens_per_sec || 0).toLocaleString()} Tokens/s`);
-    updateElement('current-loss-value', Number(data.current_loss || 0).toFixed(4));
-    updateElement('shards-count-value', `${data.shards_processed || 24} Shards`);
+    const worldTokens = data.total_world_tokens || 0;
+    const tokenStr = worldTokens >= 1000000 ? `${(worldTokens / 1000000).toFixed(2)}M` : worldTokens.toLocaleString();
+    const corpusShards = data.total_corpus_shards || data.shards_processed || 1397;
+    updateElement('shards-count-value', `${tokenStr} (${corpusShards} Shards)`);
 
     // 2. Hardware Telemetry
     if (data.gpu_vram_used_gb !== undefined) {
@@ -142,13 +144,27 @@ async function fetchMetrics() {
       updateStyle('cpu-bar', 'width', `${data.cpu_util_pct}%`);
     }
 
-    // 3. Loss Chart History
+    // 3. Live Benchmark Metrics
+    if (data.validation_ppl !== undefined) {
+      updateElement('bench-ppl-val', Number(data.validation_ppl).toFixed(2));
+    }
+    if (data.mmlu_score !== undefined) {
+      updateElement('bench-mmlu-val', `${Number(data.mmlu_score).toFixed(1)}%`);
+    }
+    if (data.inference_tps !== undefined) {
+      updateElement('bench-tps-val', `${Number(data.inference_tps).toFixed(1)} T/s`);
+    }
+    if (data.compression_ratio !== undefined) {
+      updateElement('bench-compress-val', `${Number(data.compression_ratio).toFixed(2)}x`);
+    }
+
+    // 4. Loss Chart History
     if (data.loss_history && data.loss_history.length > 0) {
       lossHistory = data.loss_history;
       drawChart();
     }
 
-    // 4. Dynamic Training Knowledge Graph
+    // 5. Dynamic Training Knowledge Graph
     if (data.training_graph) {
       renderTrainingGraph(data.training_graph, data.active_knowledge_node);
     }
@@ -183,9 +199,9 @@ function renderTrainingGraph(graphData, activeNodeName) {
   }
 
   if (alertBox && alertText) {
-    if (graphData.recent_remediations && graphData.recent_remediations.length > 0) {
+    if (graphData.has_active_remediation && graphData.active_remediation_text) {
       alertBox.style.display = 'flex';
-      alertText.textContent = graphData.recent_remediations[graphData.recent_remediations.length - 1];
+      alertText.textContent = graphData.active_remediation_text;
     } else {
       alertBox.style.display = 'none';
     }
@@ -258,7 +274,134 @@ if (genBtn) {
   });
 }
 
+// Autonomous Learning Events Fetcher
+async function fetchAutonomousLearning() {
+  const container = document.getElementById('autonomous-events-list');
+  const statusEl = document.getElementById('auto-learner-status');
+  if (!container) return;
+
+  try {
+    const res = await fetch('/api/autonomous_learning');
+    if (!res.ok) return;
+    const data = await res.json();
+
+    if (statusEl) {
+      statusEl.textContent = data.status === 'active' ? '🟢 Aktiv (Live Daemon)' : 'Schläft';
+    }
+
+    if (!data.events || data.events.length === 0) {
+      container.innerHTML = '<div style="font-size: 0.82rem; color: var(--text-muted);">Überwache Wissensknoten auf Wissenslücken (Loss &gt; 5.8)...</div>';
+      return;
+    }
+
+    container.innerHTML = '';
+    data.events.slice(-5).reverse().forEach(ev => {
+      const card = document.createElement('div');
+      card.style.cssText = 'background: hsla(222,47%,14%,0.8); border: 1px solid var(--border-glass); border-radius: 8px; padding: 8px 12px; font-size: 0.8rem; display: flex; flex-direction: column; gap: 4px;';
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-weight: 600; color: var(--primary);">🧠 Lücke in: ${escapeHtml(ev.node_name)}</span>
+          <span style="color: var(--text-muted); font-size: 0.72rem; font-family: var(--font-mono);">${ev.timestamp}</span>
+        </div>
+        <div style="color: var(--text-main); font-size: 0.78rem;">
+          🔍 <strong>Recherchiertes Thema:</strong> <em>${escapeHtml(ev.researched_topic)}</em> (${ev.sources_count} Quellen)
+        </div>
+        <div style="display: flex; gap: 8px; font-size: 0.72rem; color: #a855f7; font-family: var(--font-mono);">
+          <span>💾 Shard: ${ev.generated_shard}</span>
+          <span>⚡ +${formatTokens(ev.tokens_generated)}</span>
+          <span>Trigger Loss: ${Number(ev.trigger_loss).toFixed(2)}</span>
+        </div>
+      `;
+      container.appendChild(card);
+    });
+
+  } catch (err) {
+    // ignore
+  }
+}
+
+// Cognitive Heartbeat & Stream of Consciousness Fetcher
+async function fetchCognitiveHeartbeat() {
+  const thoughtsContainer = document.getElementById('cognitive-thoughts-list');
+  const timelineContainer = document.getElementById('autobiographical-timeline-list');
+  const heartbeatStatus = document.getElementById('heartbeat-status');
+  if (!thoughtsContainer || !timelineContainer) return;
+
+  try {
+    const res = await fetch('/api/cognitive_heartbeat');
+    if (!res.ok) return;
+    const data = await res.json();
+
+    if (heartbeatStatus) {
+      heartbeatStatus.textContent = data.status === 'active' ? '💓 12s Takt (Aktiv)' : 'Pausiert';
+    }
+
+    // Render Thoughts
+    if (!data.thoughts || data.thoughts.length === 0) {
+      thoughtsContainer.innerHTML = '<div style="font-size: 0.8rem; color: var(--text-muted);">Initiiere ersten internen Reflexionszyklus...</div>';
+    } else {
+      thoughtsContainer.innerHTML = '';
+      data.thoughts.slice(-4).reverse().forEach(th => {
+        const item = document.createElement('div');
+        item.style.cssText = 'background: hsla(222,47%,12%,0.9); border-left: 3px solid var(--primary); border-radius: 4px; padding: 6px 10px; font-size: 0.76rem; display: flex; flex-direction: column; gap: 3px;';
+        
+        let passesHtml = '';
+        if (th.passes) {
+          th.passes.forEach(p => {
+            passesHtml += `<div style="color: var(--text-muted); font-size: 0.72rem; line-height: 1.2;">• ${escapeHtml(p)}</div>`;
+          });
+        }
+
+        item.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 600; color: var(--primary);">#${th.thought_id} ${escapeHtml(th.domain)}</span>
+            <span style="color: #22c55e; font-size: 0.7rem; font-family: var(--font-mono);">${(th.confidence * 100).toFixed(1)}% Konfidenz</span>
+          </div>
+          ${passesHtml}
+          <div style="color: var(--text-muted); font-size: 0.68rem; text-align: right; font-family: var(--font-mono);">${th.timestamp}</div>
+        `;
+        thoughtsContainer.appendChild(item);
+      });
+    }
+
+    // Render Timeline
+    if (!data.timeline || data.timeline.length === 0) {
+      timelineContainer.innerHTML = '<div style="font-size: 0.8rem; color: var(--text-muted);">Konsolidiere Meilensteine im 18-Bit Bitstream...</div>';
+    } else {
+      timelineContainer.innerHTML = '';
+      data.timeline.slice(-4).reverse().forEach(ep => {
+        const item = document.createElement('div');
+        item.style.cssText = 'background: hsla(270,50%,12%,0.9); border-left: 3px solid #a855f7; border-radius: 4px; padding: 6px 10px; font-size: 0.76rem; display: flex; flex-direction: column; gap: 3px;';
+        item.innerHTML = `
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 600; color: #c084fc;">${escapeHtml(ep.title)}</span>
+            <span style="color: var(--text-muted); font-size: 0.68rem; font-family: var(--font-mono);">${ep.timestamp}</span>
+          </div>
+          <div style="color: var(--text-main); font-size: 0.72rem;">${escapeHtml(ep.reflection_summary)}</div>
+          <div style="display: flex; gap: 8px; font-size: 0.68rem; color: #a855f7; font-family: var(--font-mono);">
+            <span>⚡ ${escapeHtml(ep.hebbian_weight_boost)}</span>
+            <span>Knoten: ${ep.active_graph_nodes}</span>
+          </div>
+        `;
+        timelineContainer.appendChild(item);
+      });
+    }
+
+  } catch (err) {
+    // ignore
+  }
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 // Initial Setup
 resizeCanvas();
 fetchMetrics();
+fetchAutonomousLearning();
+fetchCognitiveHeartbeat();
 setInterval(fetchMetrics, 1000);
+setInterval(fetchAutonomousLearning, 3000);
+setInterval(fetchCognitiveHeartbeat, 3000);

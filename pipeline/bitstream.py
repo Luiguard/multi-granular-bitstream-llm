@@ -57,6 +57,9 @@ class BitstreamEncoder:
         if self.bit_width == 16:
             arr = np.array(token_ids, dtype=np.uint16)
             return bytearray(arr.tobytes())
+        elif self.bit_width == 32:
+            arr = np.array(token_ids, dtype=np.uint32)
+            return bytearray(arr.tobytes())
         elif self.bit_width == 8:
             arr = np.array(token_ids, dtype=np.uint8)
             return bytearray(arr.tobytes())
@@ -113,6 +116,10 @@ class BitstreamDecoder:
             # Fast vectorized C-level decode
             expected_bytes = token_count * 2
             arr = np.frombuffer(packed_bytes[:expected_bytes], dtype=np.uint16)
+            return arr.tolist()
+        elif bit_width == 32:
+            expected_bytes = token_count * 4
+            arr = np.frombuffer(packed_bytes[:expected_bytes], dtype=np.uint32)
             return arr.tolist()
         elif bit_width == 8:
             arr = np.frombuffer(packed_bytes[:token_count], dtype=np.uint8)

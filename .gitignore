@@ -19,3 +19,9 @@ data/
 .DS_Store
 .vscode/
 .idea/
+
+# Logs & Temporary Artifacts
+*.log
+*.pdf
+dashboard_metrics.json
+data/test_scratch/

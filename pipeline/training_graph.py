@@ -49,6 +49,9 @@ class KnowledgeNode:
         self.sample_count: int = 0
         self.status: str = "LOCKED" if prerequisites else "ACTIVE"
         self.remediation_boost: float = 1.0
+        self.consecutive_spikes: int = 0
+        self.consecutive_high_loss: int = 0
+        self.last_remediation_step: int = 0
 
         self._cached_tokens: Optional[np.ndarray] = None
         self._current_shard_idx: int = 0
@@ -140,13 +143,20 @@ class KnowledgeNode:
         if len(self.loss_history) == 0:
             self.moving_loss = loss_val
         else:
-            self.moving_loss = 0.92 * self.moving_loss + 0.08 * loss_val
+            # Stabile, sanfte EMA (alpha = 0.03 verhindert Loss-Rauschen)
+            self.moving_loss = 0.97 * self.moving_loss + 0.03 * loss_val
 
         self.loss_history.append(round(loss_val, 4))
         if len(self.loss_history) > 100:
             self.loss_history.pop(0)
 
-        # Update mastery status
+        # Überwache langanhaltend hohen Loss (> 6.5) zur Oszillations-Dämpfung
+        if loss_val > 6.5:
+            self.consecutive_high_loss += 1
+        else:
+            self.consecutive_high_loss = max(0, self.consecutive_high_loss - 1)
+
+        # Update mastery status mit Hysterese
         if self.sample_count >= 20 and self.moving_loss <= self.mastery_threshold:
             self.status = "MASTERED"
         elif self.status != "LOCKED":
@@ -168,14 +178,14 @@ class TrainingKnowledgeGraph:
         self.add_node(KnowledgeNode(
             node_id="node_0_foundation",
             name="Foundation Bitstream & Syntax",
-            description="Elementare 16-Bit Viterbi-Tokens & Grundsyntax",
+            description="Elementare 18-Bit Viterbi-Tokens & Grundsyntax",
             shard_dirs=[os.path.join(self.base_dir, "data/shards")],
             prerequisites=[],
             mastery_threshold=6.5,
             base_weight=2.0,
         ))
 
-        # 2. Node 1: Cyber & Web Knowledge (Requires Foundation)
+        # 2. Node 1: Cyber, Code & Minecraft Knowledge (Requires Foundation)
         self.add_node(KnowledgeNode(
             node_id="node_1_cyber_web",
             name="Cyber & Web Knowledge",
@@ -189,7 +199,7 @@ class TrainingKnowledgeGraph:
             base_weight=1.5,
         ))
 
-        # 3. Node 2: STEM, Math & Biology (Requires Foundation)
+        # 3. Node 2: STEM, Math & Science (Requires Foundation)
         self.add_node(KnowledgeNode(
             node_id="node_2_stem_math",
             name="STEM, Math & Science",
@@ -198,13 +208,14 @@ class TrainingKnowledgeGraph:
                 os.path.join(self.base_dir, "data/stem_knowledge/shards"),
                 os.path.join(self.base_dir, "data/biology_math/shards"),
                 os.path.join(self.base_dir, "data/chinchilla_corpus/arxiv_shards"),
+                os.path.join(self.base_dir, "data/stem_math/shards"),
             ],
             prerequisites=["node_0_foundation"],
             mastery_threshold=5.5,
             base_weight=1.8,
         ))
 
-        # 4. Node 3: World & History Corpus (Requires Cyber/Web + STEM)
+        # 4. Node 3: World & History Corpus (Requires Cyber and STEM)
         self.add_node(KnowledgeNode(
             node_id="node_3_world_corpus",
             name="World & History Corpus",
@@ -215,13 +226,14 @@ class TrainingKnowledgeGraph:
                 os.path.join(self.base_dir, "data/chinchilla_corpus/wiki_de_shards"),
                 os.path.join(self.base_dir, "data/chinchilla_corpus/gutenberg_shards"),
                 os.path.join(self.base_dir, "data/chinchilla_corpus/phil_shards"),
+                os.path.join(self.base_dir, "data/world_corpus/shards"),
             ],
             prerequisites=["node_1_cyber_web", "node_2_stem_math"],
             mastery_threshold=5.0,
             base_weight=2.5,
         ))
 
-        # 5. Node 4: AI & Deep Reasoning (Requires STEM + World)
+        # 5. Node 4: AI Research & Deep Reasoning (Requires STEM and World Corpus)
         self.add_node(KnowledgeNode(
             node_id="node_4_ai_reasoning",
             name="AI & Deep Reasoning",
@@ -229,6 +241,7 @@ class TrainingKnowledgeGraph:
             shard_dirs=[
                 os.path.join(self.base_dir, "data/ai_research_knowledge/shards"),
                 os.path.join(self.base_dir, "data/chinchilla_corpus/stackexchange_shards"),
+                os.path.join(self.base_dir, "data/ai_reasoning/shards"),
             ],
             prerequisites=["node_2_stem_math", "node_3_world_corpus"],
             mastery_threshold=4.6,
@@ -288,11 +301,18 @@ class TrainingKnowledgeGraph:
             # Fallback to root node if everything is locked
             eligible_nodes = [self.nodes["node_0_foundation"]]
 
-        # Calculate sampling weights: higher loss + higher remediation boost = higher sampling probability
+        # Calculate sampling weights: Gedämpfte, verhältnismäßige Skalierung (Anti-Thrashing)
         weights = []
         for node in eligible_nodes:
-            # Nodes with higher loss get prioritized, scaled by their base weight and remediation boost
-            w = node.base_weight * node.remediation_boost * (1.0 + math.log(max(1.0, node.moving_loss)))
+            # Sanfter tanh-Faktor begrenzt den Einfluss extremer Loss-Werte auf [0.75, 1.35]
+            loss_ratio = max(0.1, node.moving_loss / max(0.1, node.mastery_threshold))
+            loss_factor = 1.0 + 0.35 * math.tanh(loss_ratio - 1.0)
+
+            # Oszillations-Schutz: Wenn ein Knoten bei > 6.5 verharrt, nicht krampfhaft nur ihn ziehen
+            if node.consecutive_high_loss > 15:
+                loss_factor *= 0.75  # Erlaubt dem Modell, auf anderen Knoten Wissen aufzubauen
+
+            w = node.base_weight * node.remediation_boost * loss_factor
             if node.status == "MASTERED":
                 w *= 0.35  # Maintain mastery with lower sampling frequency
             weights.append(max(0.01, w))
@@ -304,26 +324,33 @@ class TrainingKnowledgeGraph:
         x, y = chosen_node.get_batch(batch_size=batch_size, seq_len=seq_len)
         return x, y, chosen_node.node_id
 
-    def report_batch_loss(self, node_id: str, loss_val: float):
-        """Updates moving loss and triggers Error Remediation Backtracking upon loss spikes."""
+    def report_batch_loss(self, node_id: str, loss_val: float, current_step: int = 0):
+        """Updates moving loss and triggers Error Remediation Backtracking upon persistent loss spikes."""
         node = self.nodes.get(node_id)
         if node is None:
             return
 
-        # Check for loss spike (> 35% higher than moving average) to trigger remediation
-        if node.sample_count > 5 and loss_val > node.moving_loss * 1.35:
-            # Backtracking: boost sampling weight of all prerequisite parent nodes!
+        # 1. Prüfe auf Loss-Spike (> 30% über EMA)
+        if node.sample_count > 5 and loss_val > node.moving_loss * 1.30:
+            node.consecutive_spikes += 1
+        else:
+            node.consecutive_spikes = max(0, node.consecutive_spikes - 1)
+
+        # 2. Remediation triggert NUR bei 3 wiederholten Spikes UND nach 25 Steps Cooldown
+        if node.consecutive_spikes >= 3 and (current_step - node.last_remediation_step >= 25):
+            node.last_remediation_step = current_step
+            node.consecutive_spikes = 0  # Zurücksetzen
             for prereq_id in node.prerequisites:
                 parent = self.nodes.get(prereq_id)
                 if parent:
-                    parent.remediation_boost = min(3.0, parent.remediation_boost + 0.4)
-                    event_str = f"⚠️ Loss-Spike auf {node.name} ({loss_val:.2f}) -> Verstärke Eltern-Knoten {parent.name} (+40%)"
+                    parent.remediation_boost = min(2.5, parent.remediation_boost + 0.35)
+                    event_str = f"⚠️ Persistenter Loss-Spike auf {node.name} ({loss_val:.2f}) -> Verstärke Eltern-Knoten {parent.name} (+35%)"
                     self.remediation_log.append(event_str)
                     if len(self.remediation_log) > 20:
                         self.remediation_log.pop(0)
 
-        # Decay remediation boost slowly back to 1.0
-        node.remediation_boost = max(1.0, node.remediation_boost * 0.98)
+        # Sanftes Abklingen des Boosts zurück auf 1.0
+        node.remediation_boost = max(1.0, node.remediation_boost * 0.985)
         node.update_loss(loss_val)
 
     def get_telemetry_state(self) -> Dict[str, Any]:
@@ -349,12 +376,16 @@ class TrainingKnowledgeGraph:
         mastered_count = sum(1 for n in self.nodes.values() if n.status == "MASTERED")
         active_count = sum(1 for n in self.nodes.values() if n.status == "ACTIVE")
 
+        has_active_boost = any(n.remediation_boost > 1.05 for n in self.nodes.values())
+
         return {
             "nodes": nodes_data,
             "edges": edges_data,
             "mastered_count": mastered_count,
             "active_count": active_count,
             "total_nodes": len(self.nodes),
+            "has_active_remediation": has_active_boost,
+            "active_remediation_text": self.remediation_log[-1] if (has_active_boost and self.remediation_log) else None,
             "recent_remediations": self.remediation_log[-5:],
         }
 

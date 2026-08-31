@@ -7,12 +7,12 @@ echo "========================================================"
 echo ""
 
 echo "[1/3] Beende eventuelle alte Hintergrundprozesse..."
-pkill -f "autonomous_30day_trainer.py"
-pkill -f "galore_7b_per_layer_trainer.py"
-pkill -f "ingest_chinchilla_optimal.py"
-pkill -f "ingest_7b_massive_expansion.py"
-pkill -f "dashboard/server.py"
-sleep 2
+pkill -9 -f "autonomous_30day_trainer.py" 2>/dev/null || true
+pkill -9 -f "galore_7b_per_layer_trainer.py" 2>/dev/null || true
+pkill -9 -f "ingest_chinchilla_optimal.py" 2>/dev/null || true
+pkill -9 -f "ingest_7b_massive_expansion.py" 2>/dev/null || true
+pkill -9 -f "dashboard/server.py" 2>/dev/null || true
+sleep 1
 
 echo "[2/3] Starte 100-Milliarden-Tokens-Pumpe (FineWeb-Edu) im Hintergrund..."
 nohup env PYTHONPATH=/home/benjamin/Bilder .venv/bin/python scripts/ingest_7b_massive_expansion.py > /home/benjamin/Bilder/ingestion_7b_background.log 2>&1 &

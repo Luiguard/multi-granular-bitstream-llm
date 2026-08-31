@@ -20,12 +20,15 @@
         <div class="pulse-indicator online" id="status-pulse"></div>
         <div>
           <h1>Bitstream AI Training Console</h1>
-          <p class="subtitle">Multi-Granular 16-Bit Token Engine & Hardware Telemetrie</p>
+          <p class="subtitle">Multi-Granular 18-Bit Token Engine & Hardware Telemetrie</p>
         </div>
       </div>
       <div class="header-badges">
+        <a href="/chat.html" style="text-decoration: none; background: linear-gradient(135deg, hsl(192, 95%, 50%), hsl(265, 89%, 66%)); color: hsl(224, 71%, 4%); padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: 0.82rem; display: flex; align-items: center; gap: 6px; box-shadow: 0 0 16px hsla(192, 95%, 50%, 0.5);">
+          <span>💬 KI Chat Studio</span>
+        </a>
         <span class="badge badge-glow" id="device-badge">GPU: NVIDIA RTX 3060 (6 GB)</span>
-        <span class="badge badge-secondary" id="vocab-badge">Vokabular: 65.536 Tokens</span>
+        <span class="badge badge-secondary" id="vocab-badge">Vokabular: 262.144 Tokens (18-Bit)</span>
       </div>
     </header>
 
@@ -60,8 +63,8 @@
             <span class="metric-value accent" id="current-loss-value">3.3185</span>
           </div>
           <div class="metric-box">
-            <span class="metric-title">Verarbeitete Shards</span>
-            <span class="metric-value" id="shards-count-value">24 Shards</span>
+            <span class="metric-title">Trainierte Tokens (Shards)</span>
+            <span class="metric-value" id="shards-count-value">11.8M Tokens (1.397 Shards)</span>
           </div>
         </div>
       </section>
@@ -128,23 +131,23 @@
         <div class="benchmark-grid">
           <div class="bench-item">
             <div class="bench-label">Validierungs-Perplexity (PPL)</div>
-            <div class="bench-val highlight">27.62</div>
-            <div class="bench-sub">Ungesehene Test-Shards</div>
+            <div class="bench-val highlight" id="bench-ppl-val">27.62</div>
+            <div class="bench-sub" id="bench-ppl-sub">Live Exponential Cross-Entropy</div>
           </div>
           <div class="bench-item">
             <div class="bench-label">MMLU / ARC Score</div>
-            <div class="bench-val accent">60.0%</div>
+            <div class="bench-val accent" id="bench-mmlu-val">60.0%</div>
             <div class="bench-sub">Zero-Shot Log-Likelihood</div>
           </div>
           <div class="bench-item">
             <div class="bench-label">Inferenz-Durchsatz</div>
-            <div class="bench-val">121.0 T/s</div>
-            <div class="bench-sub">~442 Wörter / Sekunde</div>
+            <div class="bench-val" id="bench-tps-val">121.0 T/s</div>
+            <div class="bench-sub" id="bench-words-val">~442 Wörter / Sekunde</div>
           </div>
           <div class="bench-item">
             <div class="bench-label">Kompression vs. UTF-8</div>
-            <div class="bench-val">4.25x</div>
-            <div class="bench-sub">16-Bit Bitstream Dichte</div>
+            <div class="bench-val" id="bench-compress-val">4.25x</div>
+            <div class="bench-sub">18-Bit Bitstream Dichte</div>
           </div>
         </div>
       </section>
@@ -156,7 +159,7 @@
           <span class="badge badge-glow" id="graph-mastery-badge">Initialisiere Graph...</span>
         </div>
         <div class="graph-info-banner">
-          <span>⚡ <strong>Loss-Aware Remediation Routing</strong>: Automatische Wissens-Voraussetzungssteuerung über 450 Shards</span>
+          <span>⚡ <strong>Loss-Aware Remediation Routing</strong>: Automatische Wissens-Voraussetzungssteuerung über 1.400+ Shards</span>
           <span id="active-node-tag" class="badge badge-secondary">Aktiv: Foundation</span>
         </div>
         <div class="training-graph-grid" id="training-graph-container">
@@ -165,6 +168,47 @@
         <div id="remediation-alert-box" class="remediation-box" style="display: none;">
           <span class="pulse-dot"></span>
           <span id="remediation-text">Keine aktiven Remediation-Spikes</span>
+        </div>
+      </section>
+
+      <!-- 5b. Autonomous Epistemic Curiosity & Self-Directed Web Research -->
+      <section class="card glass-panel">
+        <div class="card-header">
+          <h2>🌐 Autonome Selbstrecherche & Wissenslücken-Synthese</h2>
+          <span class="badge badge-glow" id="auto-learner-status">Aktiv (Daemon)</span>
+        </div>
+        <div class="graph-info-banner">
+          <span>🤖 <strong>Epistemische Neugier</strong>: Erkennt Wissenslücken (Loss &gt; 5.8), surft autonom im Web und generiert neue 18-Bit Bitstream-Shards</span>
+        </div>
+        <div id="autonomous-events-list" style="display: flex; flex-direction: column; gap: 8px; margin-top: 1rem;">
+          <div style="font-size: 0.82rem; color: var(--text-muted);">Überwache Wissensknoten auf Informationsdefizite...</div>
+        </div>
+      </section>
+
+      <!-- 5c. Recurrent Cognitive Heartbeat & Autobiographical Memory Consolidation -->
+      <section class="card glass-panel">
+        <div class="card-header">
+          <h2>💓 Kontinuierlicher Kognitiver Takt & Gedankenstrom (Self-Reflection)</h2>
+          <span class="badge badge-glow" id="heartbeat-status">12s Takt (Aktiv)</span>
+        </div>
+        <div class="graph-info-banner">
+          <span>🧠 <strong>Rekurrierende Attention-Schleife</strong>: Reflektiert ohne externe Auslöser, schließt Hypothesen-Schleifen und konsolidiert autobiografische Meilensteine</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+          <!-- Left: Internal Stream of Consciousness -->
+          <div>
+            <h3 style="font-size: 0.88rem; color: var(--primary); margin-bottom: 0.5rem;">💭 Interner Gedankenstrom (Multi-Pass Attention)</h3>
+            <div id="cognitive-thoughts-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto;">
+              <div style="font-size: 0.8rem; color: var(--text-muted);">Initialisiere internen Gedankenstrom...</div>
+            </div>
+          </div>
+          <!-- Right: Autobiographical Timeline -->
+          <div>
+            <h3 style="font-size: 0.88rem; color: #a855f7; margin-bottom: 0.5rem;">📜 Autobiografische Meilensteine & Konsolidierung</h3>
+            <div id="autobiographical-timeline-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto;">
+              <div style="font-size: 0.8rem; color: var(--text-muted);">Lade autobiografische Meilensteine...</div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -186,7 +230,7 @@
           <div class="roadmap-step active" id="phase-2-box">
             <div class="step-num">Phase 2</div>
             <div class="step-title">30-Tage 7.4B MoE Dauerlauf</div>
-            <div class="step-desc">100B Tokens · 9.86B Parameter · JIT Offload</div>
+            <div class="step-desc">100B Tokens · 7.45B Parameter (MoE) · JIT Offload</div>
             <div class="step-badge pulse">⚡ Läuft jetzt</div>
           </div>
           <!-- Phase 3 -->
@@ -224,9 +268,10 @@
             <textarea id="prompt-input" rows="3" placeholder="Tippe deinen Prompt ein (z. B. 'Künstliche Intelligenz ist...' oder 'def calculate_sum(a, b):')..."></textarea>
             <div class="prompt-actions">
               <div class="preset-buttons">
-                <button type="button" class="btn-preset" onclick="setPrompt('Künstliche Intelligenz ist')">KI-Definition</button>
-                <button type="button" class="btn-preset" onclick="setPrompt('def calculate_factorial(n):')">Python-Code</button>
-                <button type="button" class="btn-preset" onclick="setPrompt('Quantencomputer nutzen Phänomene wie')">Physik</button>
+                <button type="button" class="btn-preset" onclick="setPrompt('Wie funktioniert die Berechnung für Instant-Mining von Blöcken in Minecraft?')">⛏️ Minecraft Feinmechanik</button>
+                <button type="button" class="btn-preset" onclick="setPrompt('public final class BlockRaycastListener implements Listener {')">☕ Java 21 Paper Plugin</button>
+                <button type="button" class="btn-preset" onclick="setPrompt('def calculate_factorial(n):')">🐍 Python-Code</button>
+                <button type="button" class="btn-preset" onclick="setPrompt('Künstliche Intelligenz ist')">🧠 KI-Definition</button>
               </div>
               <button id="btn-generate" class="btn-primary">
                 <span>⚡ Text Generieren</span>

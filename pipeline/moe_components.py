@@ -21,9 +21,27 @@ class Top2GatingRouter(nn.Module):
         self.num_experts = num_experts
         self.gate = nn.Linear(d_model, num_experts, bias=False)
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(
+        self,
+        x: torch.Tensor,
+        domain_cluster: Optional[int] = None,
+        expert_bias: Optional[torch.Tensor] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         # x shape: (B * T, d_model)
         logits = self.gate(x).float().clamp(-30.0, 30.0)
+
+        # Apply soft cluster bias if domain is specified (e.g. 12 experts -> 3 clusters of 4)
+        if domain_cluster is not None and self.num_experts >= 3:
+            cluster_size = max(1, self.num_experts // 3)
+            start_idx = (domain_cluster % 3) * cluster_size
+            end_idx = min(self.num_experts, start_idx + cluster_size)
+            bias = torch.zeros(self.num_experts, dtype=logits.dtype, device=logits.device)
+            bias[start_idx:end_idx] = 1.25  # Soft preference bias for domain experts
+            logits = logits + bias
+
+        if expert_bias is not None:
+            logits = logits + expert_bias.to(device=logits.device, dtype=logits.dtype)
+
         weights = F.softmax(logits, dim=-1).type_as(x)
 
         # Select Top-2 experts
@@ -56,11 +74,16 @@ class SparseMoELayer(nn.Module):
             for _ in range(num_experts)
         ])
 
-    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(
+        self,
+        x: torch.Tensor,
+        domain_cluster: Optional[int] = None,
+        expert_bias: Optional[torch.Tensor] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         B, T, C = x.shape
         flat_x = x.view(-1, C)
 
-        top2_indices, top2_weights, aux_loss = self.router(flat_x)
+        top2_indices, top2_weights, aux_loss = self.router(flat_x, domain_cluster=domain_cluster, expert_bias=expert_bias)
         final_output = torch.zeros_like(flat_x)
 
         # Dispatch tokens to experts

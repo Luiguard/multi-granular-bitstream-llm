@@ -6,7 +6,7 @@ Enables training models with 3x-4x more parameters on consumer hardware!
 """
 
 import math
-from typing import List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple, overload
 import torch
 from torch.optim import Optimizer
 
@@ -39,9 +39,11 @@ def _compute_robust_orthogonal_matrix(mat: torch.Tensor, r: int, mode: str = "ri
     except Exception as e:
         print(f"  [Warnung] GPU SVD fehlgeschlagen ({e}), falle zurück auf CPU SVD...", flush=True)
     
+    # CPU Fallbacks
+    mat_cpu = mat.float().cpu()
+
     # Strategy 2: SVD with jitter on CPU
     try:
-        mat_cpu = mat.float().cpu()
         jitter = 1e-6 * torch.randn_like(mat_cpu)
         mat_jittered = mat_cpu + jitter
         if mode == "right":
@@ -110,17 +112,19 @@ class GaLoreProjector:
         m, n = grad.shape
         r = min(self.rank, m, n)
 
-        # Ultra-schnelle orthogonale Initialisierung bei Step 0 via QR (2 Sekunden statt 14 Minuten!)
+        # Ultra-schnelle orthogonale Initialisierung bei Step 0 via QR auf GPU (< 1 Sekunde statt 140s)
         if self.ortho_matrix is None:
             with torch.no_grad():
+                qr_dev = "cuda" if torch.cuda.is_available() else grad.device
                 if m >= n:
-                    rand_m = torch.randn(n, r, dtype=torch.float32, device=grad.device)
+                    rand_m = torch.randn(n, r, dtype=torch.float32, device=qr_dev)
                     q, _ = torch.linalg.qr(rand_m)
-                    self.ortho_matrix = q.t().to(dtype=grad.dtype)
+                    self.ortho_matrix = q.t().to(dtype=grad.dtype, device=grad.device)
                 else:
-                    rand_m = torch.randn(m, r, dtype=torch.float32, device=grad.device)
+                    rand_m = torch.randn(m, r, dtype=torch.float32, device=qr_dev)
                     q, _ = torch.linalg.qr(rand_m)
-                    self.ortho_matrix = q.to(dtype=grad.dtype)
+                    self.ortho_matrix = q.to(dtype=grad.dtype, device=grad.device)
+                del rand_m, q
         elif self.step_count % self.update_interval == 0:
             with torch.no_grad():
                 if m >= n:
@@ -130,7 +134,12 @@ class GaLoreProjector:
 
         self.step_count += 1
 
-        # Ensure matching dtypes
+        if self.ortho_matrix is None:
+            return grad
+
+        # Ensure matching devices and dtypes
+        if self.ortho_matrix.device != grad.device:
+            self.ortho_matrix = self.ortho_matrix.to(device=grad.device)
         grad_cast = grad.to(dtype=self.ortho_matrix.dtype)
         if m >= n:
             result = torch.matmul(grad_cast, self.ortho_matrix.t())
@@ -147,7 +156,9 @@ class GaLoreProjector:
         if self.ortho_matrix is None or low_rank_grad.ndim != 2:
             return low_rank_grad
 
-        # Ensure matching dtypes for matmul
+        # Ensure matching devices and dtypes for matmul
+        if self.ortho_matrix.device != low_rank_grad.device:
+            self.ortho_matrix = self.ortho_matrix.to(device=low_rank_grad.device)
         lr_grad = low_rank_grad.to(dtype=self.ortho_matrix.dtype)
 
         m, n = original_shape
@@ -189,8 +200,14 @@ class GaLoreAdamW(Optimizer):
         super().__init__(params, defaults)
         self.projectors = {}
 
+    @overload
+    def step(self, closure: None = None) -> None: ...
+
+    @overload
+    def step(self, closure: Callable[[], float]) -> float: ...
+
     @torch.no_grad()
-    def step(self, closure=None):
+    def step(self, closure: Optional[Callable[[], float]] = None) -> Optional[float]:
         loss = None
         if closure is not None:
             with torch.enable_grad():

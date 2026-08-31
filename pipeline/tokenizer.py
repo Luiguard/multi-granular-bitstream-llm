@@ -28,8 +28,8 @@ class ViterbiTokenizer:
         for byte_val in range(256):
             freq = self.vocab.id_to_frequency.get(byte_val, 1)
             prob = freq / smooth_total
-            # Base byte cost with fallback penalty so multi-char tokens are preferred
-            cost = -math.log2(max(1e-15, prob)) + 4.0
+            # Base byte cost with fallback penalty so multi-char tokens are strongly preferred
+            cost = -math.log2(max(1e-15, prob)) + 6.0
             byte_seq = bytes([byte_val])
             self._byte_trie[byte_seq] = (byte_val, cost, 1)
 
@@ -46,14 +46,14 @@ class ViterbiTokenizer:
             prob = freq / smooth_total
             base_cost = -math.log2(max(1e-15, prob))
 
-            if tier == TokenTier.PHRASE:
-                cost = base_cost - (self.length_bonus_factor * byte_len)
+            if tier == TokenTier.TEMPLATE:
+                cost = base_cost - (1.5 * byte_len)
+            elif tier == TokenTier.PHRASE:
+                cost = base_cost - (1.0 * byte_len)
             elif tier == TokenTier.WORD:
-                cost = base_cost - (0.2 * byte_len)
-            elif tier == TokenTier.TEMPLATE:
-                cost = base_cost - (self.length_bonus_factor * byte_len)
+                cost = base_cost - (0.7 * byte_len)
             else:
-                cost = base_cost
+                cost = base_cost - (0.5 * byte_len)
 
             self._byte_trie[token_bytes] = (token_id, cost, byte_len)
             if byte_len > self._max_byte_len:
@@ -76,19 +76,12 @@ class ViterbiTokenizer:
             if current_cost == float("inf"):
                 continue
 
-            # 1. Byte fallback (always valid for single byte)
-            single_byte = raw_bytes[i : i + 1]
-            t_id, byte_cost, _ = self._byte_trie[single_byte]
-            new_byte_cost = current_cost + byte_cost
-            if new_byte_cost < dp[i + 1][0]:
-                dp[i + 1] = (new_byte_cost, i, t_id)
-
-            # 2. Multi-byte vocabulary matches
+            # Check all matching sub-byte slices in the vocabulary
             max_lookahead = min(n, i + self._max_byte_len)
-            for j in range(i + 2, max_lookahead + 1):
+            for j in range(i + 1, max_lookahead + 1):
                 sub_bytes = raw_bytes[i:j]
                 if sub_bytes in self._byte_trie:
-                    t_id, t_cost, byte_len = self._byte_trie[sub_bytes]
+                    t_id, t_cost, _ = self._byte_trie[sub_bytes]
                     cand_cost = current_cost + t_cost
                     if cand_cost < dp[j][0]:
                         dp[j] = (cand_cost, i, t_id)
