@@ -87,9 +87,35 @@ function setupModeSwitcher() {
     });
   }
 
+  const multButtons = document.querySelectorAll('.btn-mult');
+  multButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      multButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const val = btn.dataset.mult;
+      selectExperts.value = val;
+      if (val === '1') {
+        if (btnModeDense) btnModeDense.classList.add('active');
+        if (btnModeMoe) btnModeMoe.classList.remove('active');
+        if (groupTopK) groupTopK.style.opacity = '0.5';
+      } else {
+        if (btnModeMoe) btnModeMoe.classList.add('active');
+        if (btnModeDense) btnModeDense.classList.remove('active');
+        if (groupTopK) groupTopK.style.opacity = '1.0';
+      }
+      triggerRecalculation();
+    });
+  });
+
   if (selectExperts) {
     selectExperts.addEventListener('change', () => {
-      if (selectExperts.value === '1') {
+      const val = selectExperts.value;
+      multButtons.forEach(b => {
+        if (b.dataset.mult === val) b.classList.add('active');
+        else b.classList.remove('active');
+      });
+
+      if (val === '1') {
         if (btnModeDense) btnModeDense.classList.add('active');
         if (btnModeMoe) btnModeMoe.classList.remove('active');
         if (groupTopK) groupTopK.style.opacity = '0.5';
@@ -173,6 +199,24 @@ function applyPreset(presetKey, cardElement) {
   selectTopK.value = p.top_k;
   selectSeqLen.value = p.max_seq_len;
   selectVocab.value = p.vocab_size;
+
+  // Sync multiplier buttons
+  const multButtons = document.querySelectorAll('.btn-mult');
+  multButtons.forEach(b => {
+    if (b.dataset.mult == p.num_experts) b.classList.add('active');
+    else b.classList.remove('active');
+  });
+
+  // Sync mode buttons
+  if (p.num_experts === 1) {
+    if (btnModeDense) btnModeDense.classList.add('active');
+    if (btnModeMoe) btnModeMoe.classList.remove('active');
+    if (groupTopK) groupTopK.style.opacity = '0.5';
+  } else {
+    if (btnModeMoe) btnModeMoe.classList.add('active');
+    if (btnModeDense) btnModeDense.classList.remove('active');
+    if (groupTopK) groupTopK.style.opacity = '1.0';
+  }
 
   triggerRecalculation();
 }

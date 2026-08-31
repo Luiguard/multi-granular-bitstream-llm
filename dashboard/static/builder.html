@@ -112,19 +112,31 @@
               <option value="128">128 Köpfe</option>
             </select>
           </div>
-          <div class="form-group" id="group-experts">
-            <label for="select-experts">Experten-Anzahl ($N_{\text{experts}}$)</label>
+          <div class="form-group" id="group-experts" style="grid-column: 1 / -1;">
+            <label for="select-experts">⚡ Experten-Multiplikator ($N_{\text{experts}}$): Wie viele Experten dieses Basis-Modells sollen kombiniert werden?</label>
+            <div class="multiplier-bar" style="display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0;">
+              <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="1">1x (Dense Single-Core)</button>
+              <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="2">2x</button>
+              <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="4">4x</button>
+              <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="8">8x</button>
+              <button type="button" class="btn-mult btn btn-secondary btn-sm active" data-mult="12">12x</button>
+              <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="16">16x</button>
+              <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="24">24x (Spliced)</button>
+              <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="32">32x</button>
+              <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="64">64x</button>
+              <button type="button" class="btn-mult btn btn-secondary btn-sm" data-mult="128">128x (Mega-MoE)</button>
+            </div>
             <select id="select-experts" class="form-select">
-              <option value="1">1 Experte (Monolithisch 100% Dense)</option>
-              <option value="2">2 Experten</option>
-              <option value="4">4 Experten (Edge MoE)</option>
-              <option value="8">8 Experten</option>
-              <option value="12" selected>12 Experten (Laptop Sweet-Spot)</option>
-              <option value="16">16 Experten</option>
-              <option value="24">24 Experten (14.2B Spliced)</option>
-              <option value="32">32 Experten</option>
-              <option value="64">64 Experten (70B Frontier)</option>
-              <option value="128">128 Experten (144B Mega-Titan)</option>
+              <option value="1">1x Experte (Monolithisch 100% Dense)</option>
+              <option value="2">2x Experten</option>
+              <option value="4">4x Experten (Edge MoE)</option>
+              <option value="8">8x Experten</option>
+              <option value="12" selected>12x Experten (Laptop Sweet-Spot)</option>
+              <option value="16">16x Experten</option>
+              <option value="24">24x Experten (14.2B Spliced)</option>
+              <option value="32">32x Experten</option>
+              <option value="64">64x Experten (70B Frontier)</option>
+              <option value="128">128x Experten (144B Mega-Titan)</option>
             </select>
           </div>
           <div class="form-group" id="group-top-k">
