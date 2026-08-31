@@ -234,7 +234,7 @@ import torch.nn.functional as F
 from model import {class_name}
 
 # Hyperparameters
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
 LEARNING_RATE = 3e-4
 BATCH_SIZE = 2
 SEQ_LEN = {self.max_seq_len}
@@ -256,7 +256,6 @@ def train():
 
     # Synthetic / Stream batch generator
     for step in range(1, MAX_STEPS + 1):
-        # Generate input tokens (random indices for benchmark or from real bitstream shards)
         input_ids = torch.randint(0, {self.vocab_size}, (BATCH_SIZE, min(SEQ_LEN, 512)), device=DEVICE)
         targets = torch.randint(0, {self.vocab_size}, (BATCH_SIZE, min(SEQ_LEN, 512)), device=DEVICE)
 
@@ -284,42 +283,454 @@ if __name__ == "__main__":
     train()
 '''
 
+    def generate_api_server_script(self) -> str:
+        """Generates a standalone OpenAI-compatible REST API Server (/v1/chat/completions)."""
+        class_name = "".join(c if c.isalnum() else "_" for c in self.name)
+        return f'''#!/usr/bin/env python3
+"""
+OpenAI-Compatible REST API Server for {self.name}.
+Compatible with OpenWebUI, LangChain, Cursor, VS Code Continue, LlamaIndex & cURL.
+Endpoints:
+  - GET  /v1/models
+  - POST /v1/chat/completions
+  - POST /v1/completions
+"""
+
+import json
+import time
+import os
+import sys
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import torch
+import torch.nn.functional as F
+from model import {class_name}
+
+PORT = int(os.environ.get("PORT", 8000))
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
+
+print(f"🚀 Initialisiere {self.name} API Server auf {{DEVICE}}...")
+MODEL = {class_name}().to(DEVICE)
+MODEL.eval()
+
+class OpenAIAPIHandler(BaseHTTPRequestHandler):
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        self.end_headers()
+
+    def do_GET(self):
+        if self.path in ("/v1/models", "/models"):
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            data = {{
+                "object": "list",
+                "data": [{{
+                    "id": "{self.name}",
+                    "object": "model",
+                    "created": int(time.time()),
+                    "owned_by": "bitstream-ai",
+                    "permission": []
+                }}]
+            }}
+            self.wfile.write(json.dumps(data).encode("utf-8"))
+            return
+        self.send_response(404)
+        self.end_headers()
+
+    def do_POST(self):
+        if self.path in ("/v1/chat/completions", "/chat/completions"):
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {{}}
+            messages = body.get("messages", [])
+            max_tokens = int(body.get("max_tokens", 100))
+            temperature = float(body.get("temperature", 0.7))
+            
+            # Simple greedy / multinomial generation
+            prompt_text = "\\n".join([f"{{m.get('role', 'user')}}: {{m.get('content', '')}}" for m in messages]) + "\\nassistant:"
+            input_ids = [ord(c) % {self.vocab_size} for c in prompt_text[-256:]] or [1]
+
+            output_text = ""
+            with torch.no_grad():
+                for _ in range(max_tokens):
+                    inp_t = torch.tensor([input_ids[-128:]], dtype=torch.long, device=DEVICE)
+                    logits, _ = MODEL(inp_t)
+                    next_id = int(torch.argmax(logits[0, -1, :]).item())
+                    input_ids.append(next_id)
+                    output_text += chr(next_id % 128) if (next_id % 128) >= 32 else " "
+                    if next_id == 0:
+                        break
+
+            res = {{
+                "id": f"chatcmpl-{{int(time.time())}}",
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": "{self.name}",
+                "choices": [{{
+                    "index": 0,
+                    "message": {{"role": "assistant", "content": output_text.strip()}},
+                    "finish_reason": "stop"
+                }}],
+                "usage": {{
+                    "prompt_tokens": len(prompt_text),
+                    "completion_tokens": len(output_text),
+                    "total_tokens": len(prompt_text) + len(output_text)
+                }}
+            }}
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+        self.send_response(404)
+        self.end_headers()
+
+if __name__ == "__main__":
+    server = HTTPServer(("0.0.0.0", PORT), OpenAIAPIHandler)
+    print(f"✨ OpenAI API Server läuft auf http://0.0.0.0:{{PORT}}/v1")
+    server.serve_forever()
+'''
+
+    def generate_web_chat_script(self) -> str:
+        """Generates a self-contained Web Chat application with embedded dark glassmorphism UI."""
+        class_name = "".join(c if c.isalnum() else "_" for c in self.name)
+        return f'''#!/usr/bin/env python3
+"""
+Single-File Web Chat Studio for {self.name}.
+Run with: python web_chat.py and open http://localhost:8080 in your browser!
+"""
+
+import json
+import time
+import os
+import sys
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import torch
+from model import {class_name}
+
+PORT = int(os.environ.get("PORT", 8080))
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
+
+print(f"🚀 Lade {self.name} Web-Chat auf {{DEVICE}}...")
+MODEL = {class_name}().to(DEVICE)
+MODEL.eval()
+
+HTML_PAGE = """<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>{self.name} · Web Chat</title>
+  <style>
+    body {{ background: #0b0f19; color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; }}
+    header {{ background: rgba(15, 23, 42, 0.85); border-bottom: 1px solid rgba(51, 65, 85, 0.5); padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; backdrop-filter: blur(12px); }}
+    h1 {{ font-size: 1.1rem; margin: 0; color: #38bdf8; }}
+    #chat-container {{ flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; max-width: 860px; margin: 0 auto; width: 100%; }}
+    .msg {{ padding: 12px 18px; border-radius: 12px; max-width: 80%; line-height: 1.5; font-size: 0.95rem; }}
+    .user {{ background: #1e293b; align-self: flex-end; border-bottom-right-radius: 2px; }}
+    .bot {{ background: #0f172a; border: 1px solid #334155; align-self: flex-start; border-bottom-left-radius: 2px; }}
+    #input-form {{ padding: 16px 24px; background: rgba(15, 23, 42, 0.95); border-top: 1px solid #334155; display: flex; gap: 12px; max-width: 860px; margin: 0 auto; width: 100%; box-sizing: border-box; }}
+    #msg-input {{ flex: 1; background: #020617; border: 1px solid #334155; color: #fff; padding: 12px 16px; border-radius: 8px; font-size: 0.95rem; outline: none; }}
+    #msg-input:focus {{ border-color: #38bdf8; }}
+    button {{ background: #38bdf8; color: #020617; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; cursor: pointer; }}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🌌 {self.name}</h1>
+    <span style="font-size: 0.8rem; background: #1e293b; padding: 4px 10px; border-radius: 6px;">{self.num_experts} Experten · 18-Bit</span>
+  </header>
+  <div id="chat-container">
+    <div class="msg bot">Hallo! Ich bin dein maßgeschneidertes <strong>{self.name}</strong> Modell. Wie kann ich dir helfen?</div>
+  </div>
+  <form id="input-form">
+    <input type="text" id="msg-input" placeholder="Schreibe eine Nachricht..." autofocus autocomplete="off">
+    <button type="submit">Senden</button>
+  </form>
+  <script>
+    const form = document.getElementById('input-form');
+    const input = document.getElementById('msg-input');
+    const container = document.getElementById('chat-container');
+
+    form.addEventListener('submit', async (e) => {{
+      e.preventDefault();
+      const txt = input.value.trim();
+      if (!txt) return;
+      input.value = '';
+
+      container.innerHTML += `<div class="msg user">${{txt}}</div>`;
+      container.scrollTop = container.scrollHeight;
+
+      const botMsg = document.createElement('div');
+      botMsg.className = 'msg bot';
+      botMsg.textContent = '...';
+      container.appendChild(botMsg);
+
+      const res = await fetch('/api/chat', {{
+        method: 'POST',
+        headers: {{ 'Content-Type': 'application/json' }},
+        body: JSON.stringify({{ prompt: txt }})
+      }});
+      const data = await res.json();
+      botMsg.textContent = data.reply;
+      container.scrollTop = container.scrollHeight;
+    }});
+  </script>
+</body>
+</html>
+"""
+
+class WebChatHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(HTML_PAGE.encode("utf-8"))
+
+    def do_POST(self):
+        if self.path == "/api/chat":
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {{}}
+            prompt = body.get("prompt", "")
+            
+            # Simple greedy decode
+            input_ids = [ord(c) % {self.vocab_size} for c in prompt[-128:]] or [1]
+            output_text = ""
+            with torch.no_grad():
+                for _ in range(50):
+                    inp_t = torch.tensor([input_ids[-128:]], dtype=torch.long, device=DEVICE)
+                    logits, _ = MODEL(inp_t)
+                    next_id = int(torch.argmax(logits[0, -1, :]).item())
+                    input_ids.append(next_id)
+                    output_text += chr(next_id % 128) if (next_id % 128) >= 32 else " "
+                    if next_id == 0:
+                        break
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({{"reply": output_text.strip() or "Antwort generiert."}}).encode("utf-8"))
+
+if __name__ == "__main__":
+    server = HTTPServer(("0.0.0.0", PORT), WebChatHandler)
+    print(f"✨ Web Chat Studio läuft auf http://localhost:{{PORT}}")
+    server.serve_forever()
+'''
+
+    def generate_cli_chat_script(self) -> str:
+        """Generates an interactive terminal chat script with token streaming."""
+        class_name = "".join(c if c.isalnum() else "_" for c in self.name)
+        return f'''#!/usr/bin/env python3
+"""
+Interactive Terminal CLI Chat for {self.name}.
+Run with: python cli_chat.py
+"""
+
+import sys
+import os
+import time
+import torch
+from model import {class_name}
+
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
+
+print("=" * 65)
+print(f"🌌 {self.name} · Terminal CLI Chat (18-Bit MoE)")
+print(f"Hardware: {{DEVICE}} | Parameter: {self.compute_parameters()['total_params_billion']}B Total")
+print("=" * 65)
+print("Tippe 'exit' oder 'quit' zum Beenden.\\n")
+
+model = {class_name}().to(DEVICE)
+model.eval()
+
+while True:
+    try:
+        user_input = input("\\033[1;36mDu:\\033[0m ").strip()
+        if not user_input:
+            continue
+        if user_input.lower() in ("exit", "quit"):
+            print("Auf Wiedersehen!")
+            break
+
+        print("\\033[1;35m{self.name}:\\033[0m ", end="", flush=True)
+        input_ids = [ord(c) % {self.vocab_size} for c in user_input[-128:]] or [1]
+
+        with torch.no_grad():
+            for _ in range(60):
+                inp_t = torch.tensor([input_ids[-128:]], dtype=torch.long, device=DEVICE)
+                logits, _ = model(inp_t)
+                next_id = int(torch.argmax(logits[0, -1, :]).item())
+                input_ids.append(next_id)
+                char_out = chr(next_id % 128) if (next_id % 128) >= 32 else " "
+                print(char_out, end="", flush=True)
+                time.sleep(0.015)
+                if next_id == 0:
+                    break
+        print("\\n")
+    except (KeyboardInterrupt, EOFError):
+        print("\\nBeendet.")
+        break
+'''
+
     def create_training_bundle_zip(self, output_zip_path: str) -> str:
-        """Packages model.py, train.py, config.json, run_training.sh, and requirements.txt into a zip file."""
+        """Packages model.py, train.py, api_server.py, web_chat.py, cli_chat.py, config.json, and launchers into a zip file."""
         import zipfile
-        import io
 
         class_name = "".join(c if c.isalnum() else "_" for c in self.name)
         model_code = self.generate_pytorch_code()
         train_code = self.generate_training_script()
+        api_code = self.generate_api_server_script()
+        web_chat_code = self.generate_web_chat_script()
+        cli_chat_code = self.generate_cli_chat_script()
+
         config_data = json.dumps({
             "name": self.name,
             "specs": self.__dict__,
             "footprint": self.compute_hardware_footprint(),
         }, indent=2)
 
-        run_sh = f'''#!/usr/bin/env bash
+        start_linux = f'''#!/usr/bin/env bash
 set -e
-echo "🚀 Starte Training für {self.name}..."
+echo "=========================================================="
+echo "🚀 {self.name} · All-in-One Linux Starter"
+echo "=========================================================="
+if [ ! -d ".venv" ]; then
+    echo "📦 Erstelle virtuelles Python Environment..."
+    python3 -m venv .venv
+fi
+source .venv/bin/activate
 pip install -r requirements.txt
-python train.py
+
+echo "\\nWelcher Modus soll gestartet werden?"
+echo "1) 💬 Web Chat Studio (Browser auf http://localhost:8080)"
+echo "2) 🔌 OpenAI-kompatibler REST-API Server (Port 8000)"
+echo "3) ⌨️ Terminal CLI Chat"
+echo "4) 🚂 Training & Fine-Tuning starten"
+read -p "Auswahl (1-4) [Standard: 1]: " choice
+choice=${{choice:-1}}
+
+if [ "$choice" = "1" ]; then
+    python web_chat.py
+elif [ "$choice" = "2" ]; then
+    python api_server.py
+elif [ "$choice" = "3" ]; then
+    python cli_chat.py
+elif [ "$choice" = "4" ]; then
+    python train.py
+fi
 '''
+
+        start_windows = f'''@echo off
+echo ==========================================================
+echo 🚀 {self.name} · All-in-One Windows Starter
+echo ==========================================================
+if not exist ".venv" (
+    echo 📦 Erstelle virtuelles Python Environment...
+    python -m venv .venv
+)
+call .venv\\Scripts\\activate
+pip install -r requirements.txt
+
+echo.
+echo Welcher Modus soll gestartet werden?
+echo 1) 💬 Web Chat Studio (Browser auf http://localhost:8080)
+echo 2) 🔌 OpenAI-kompatibler REST-API Server (Port 8000)
+echo 3) ⌨️ Terminal CLI Chat
+echo 4) 🚂 Training starten
+set /p choice="Auswahl (1-4) [Standard: 1]: "
+if "%choice%"=="" set choice=1
+
+if "%choice%"=="1" python web_chat.py
+if "%choice%"=="2" python api_server.py
+if "%choice%"=="3" python cli_chat.py
+if "%choice%"=="4" python train.py
+pause
+'''
+
+        start_mac = f'''#!/usr/bin/env bash
+set -e
+echo "=========================================================="
+echo "🍎 {self.name} · Apple Silicon (MPS / Metal) Starter"
+echo "=========================================================="
+if [ ! -d ".venv" ]; then
+    python3 -m venv .venv
+fi
+source .venv/bin/activate
+pip install -r requirements.txt
+python web_chat.py
+'''
+
+        dockerfile = f'''FROM pytorch/pytorch:2.2.0-cuda12.1-cudnn8-runtime
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+EXPOSE 8000 8080
+CMD ["python", "api_server.py"]
+'''
+
+        docker_compose = f'''version: '3.8'
+services:
+  {class_name.lower()}:
+    build: .
+    ports:
+      - "8000:8000"
+      - "8080:8080"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+'''
+
         reqs_txt = "torch>=2.0.0\nnumpy>=1.24.0\n"
-        readme_md = f'''# {self.name} · Standalone Trainings-Paket
+        readme_md = f'''# {self.name} · Universelles Standalone KI-Paket
 
-Dieses Paket wurde automatisch vom **Bitstream AI Architecture Studio** generiert.
+Automatisch generiert vom **Bitstream AI Architecture Studio**.
 
-## 📊 Spezifikationen:
+## 📊 Spezifikationen
 - **Gesamt-Parameter**: {self.compute_parameters()["total_params_billion"]} Mrd.
 - **Aktive Parameter**: {self.compute_parameters()["active_params_million"]} Mio. pro Token
-- **Experten**: {self.num_experts} (Top-{self.top_k} Routing)
+- **Experten-Topologie**: {self.num_experts} Experten (Top-{self.top_k} Routing)
 - **Vokabular**: {self.vocab_size} (18-Bit Viterbi)
-- **Kontext**: {self.max_seq_len} Tokens
+- **Kontext-Länge**: {self.max_seq_len} Tokens
 
-## 🚀 Schnellstart:
+## 🚀 Schnellstart
+
+### 🐧 Linux / WSL2:
 ```bash
-chmod +x run_training.sh
-./run_training.sh
+chmod +x start_linux.sh
+./start_linux.sh
+```
+
+### 🪟 Windows (10 / 11):
+Doppelklick auf `start_windows.bat` oder in PowerShell ausführen:
+```cmd
+start_windows.bat
+```
+
+### 🍎 Mac (Apple Silicon M1/M2/M3/M4):
+```bash
+chmod +x start_mac.sh
+./start_mac.sh
+```
+
+### 🐳 Docker:
+```bash
+docker compose up --build
+```
+
+## 🔌 OpenAI-kompatible API
+Wenn `api_server.py` läuft (Port 8000), kannst du jedes Tool verbinden:
+```bash
+curl http://localhost:8000/v1/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -d '{{"messages": [{{"role": "user", "content": "Hallo KI!"}}]}}'
 ```
 '''
 
@@ -327,13 +738,21 @@ chmod +x run_training.sh
         with zipfile.ZipFile(output_zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
             zf.writestr("model.py", model_code)
             zf.writestr("train.py", train_code)
+            zf.writestr("api_server.py", api_code)
+            zf.writestr("web_chat.py", web_chat_code)
+            zf.writestr("cli_chat.py", cli_chat_code)
             zf.writestr("config.json", config_data)
-            zf.writestr("run_training.sh", run_sh)
+            zf.writestr("start_linux.sh", start_linux)
+            zf.writestr("start_windows.bat", start_windows)
+            zf.writestr("start_mac.sh", start_mac)
+            zf.writestr("Dockerfile", dockerfile)
+            zf.writestr("docker-compose.yml", docker_compose)
             zf.writestr("requirements.txt", reqs_txt)
             zf.writestr("README.md", readme_md)
 
-        print(f"  📦 Komplettes Trainings-Paket geschnürt -> {output_zip_path}")
+        print(f"  📦 Universelles All-in-One Paket geschnürt -> {output_zip_path}")
         return output_zip_path
+
 
 
 

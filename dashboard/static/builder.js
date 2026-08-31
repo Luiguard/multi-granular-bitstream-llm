@@ -46,6 +46,9 @@ const btnGenerateModel = document.getElementById('btn-generate-model');
 const btnExportRecipe = document.getElementById('btn-export-recipe');
 const builderToast = document.getElementById('builder-toast');
 
+const selectHardwareProfile = document.getElementById('select-hardware-profile');
+const selectQuantization = document.getElementById('select-quantization');
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
   setupSliderListeners();
@@ -70,10 +73,11 @@ function setupSliderListeners() {
 function setupFormListeners() {
   const inputs = [
     inputModelName, selectDModel, selectLayers, selectHeads,
-    selectExperts, selectTopK, selectSeqLen, selectVocab
+    selectExperts, selectTopK, selectSeqLen, selectVocab,
+    selectHardwareProfile, selectQuantization
   ];
   inputs.forEach(el => {
-    el.addEventListener('change', () => triggerRecalculation());
+    if (el) el.addEventListener('change', () => triggerRecalculation());
   });
   inputModelName.addEventListener('input', () => debounceRecalculate());
 }

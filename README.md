@@ -86,8 +86,9 @@ flowchart TD
    - Ermöglicht das modulare Exportieren, Importieren und Inspizieren von Experten-Paketen.
    - Unterstützt analytisches **Zero-Shot Router Alignment** via Kosinus-Schwerpunkt-Normalisierung.
    - Ermöglicht das **Splicen von zwei 12-Experten Checkpoints zu einem 24-Experten 14.2B Modell** (`splice_to_14b`).
-6. **Bitstream AI Architecture Studio & Model Builder ([`pipeline/model_builder_engine.py`](file:///home/benjamin/Bilder/pipeline/model_builder_engine.py))**:
+6. **Bitstream AI Architecture Studio & Universal Deployment Bundle ([`pipeline/model_builder_engine.py`](file:///home/benjamin/Bilder/pipeline/model_builder_engine.py))**:
    - Interaktiver Web-Baukasten ([`dashboard/static/builder.html`](file:///home/benjamin/Bilder/dashboard/static/builder.html)) für beliebige Architekturen von **100M Edge (1 Experte)** über **144B Single-Experte (Dense)** bis zu **1.73T Multi-MoE (12× 144B Spliced)**.
+   - **1-Klick All-in-One Deployment Bundle (.zip)**: Enthält `model.py`, `train.py`, einen OpenAI-kompatiblen REST API Server (`api_server.py`), Web Chat Studio (`web_chat.py`), Terminal CLI (`cli_chat.py`) und Multi-Plattform Starter (`start_linux.sh`, `start_windows.bat`, `start_mac.sh`, `Dockerfile`).
    - Echtzeit-Hardware-Simulator für VRAM/RAM-Bedarf bei Training und Inferenz (16-Bit, 8-Bit, 4-Bit).
    - Multi-Modell Fusion (`splice_multi_models`): Fügt beliebig viele Checkpoints zu einem gemeinsamen Super-MoE zusammen.
 7. **Autonome Nachtruhe & Shard-Erstellung ([`pipeline/autonomous_epistemic_learner.py`](file:///home/benjamin/Bilder/pipeline/autonomous_epistemic_learner.py))**:
@@ -100,6 +101,9 @@ flowchart TD
 
 ### 1. Test-Suite ausführen
 ```bash
+# Überprüft das All-in-One Deployment-Paket, OpenAI API Server & Starter-Skripte
+.venv/bin/python tests/test_complete_bundle.py
+
 # Überprüft den KI Model Builder, Topologie-Berechnungen (100M bis 1.7T) & Code-Generierung
 .venv/bin/python tests/test_model_builder.py
 

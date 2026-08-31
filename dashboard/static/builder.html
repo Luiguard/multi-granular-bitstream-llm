@@ -200,11 +200,61 @@
           </div>
           <div class="slider-group">
             <div class="slider-header">
-              <label>Autonome Web-Neugier</label>
+              <label>Autonome Neugier & Deep Dive</label>
               <span class="slider-val" id="val-curiosity">75%</span>
             </div>
             <input type="range" min="0" max="100" value="75" class="form-range" id="range-curiosity">
-            <small>Trigger für autonomes Nachforschen bei hohem Loss</small>
+            <small>Steuert das eigenständige Erforschen neuer Wissensgebiete</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Target Hardware & Deployment Bundle -->
+      <div class="panel-section">
+        <h2 class="section-title">🚀 5. Ziel-Hardware & Deployment-Schnittstellen</h2>
+        <p class="section-desc">Passe das generierte Paket an dein Gerät und deine Lieblings-Tools an:</p>
+        
+        <div class="form-grid" style="margin-bottom: 16px;">
+          <div class="form-group">
+            <label for="select-hardware-profile">Ziel-Hardware Profil</label>
+            <select id="select-hardware-profile" class="form-select">
+              <option value="laptop" selected>💻 Laptop / Heim-PC (6–12 GB VRAM / GaLore / 4-Bit Hybrid)</option>
+              <option value="workstation">🖥️ Workstation / Gaming PC (24 GB VRAM / RTX 3090/4090 / 8-Bit FP8)</option>
+              <option value="cloud">🏢 Cloud Server (80 GB A100/H100 / Multi-GPU Distributed)</option>
+              <option value="mac">🍎 Apple Silicon Mac (M1/M2/M3/M4 / Metal MPS Beschleunigung)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="select-quantization">Inferenz-Präzision / Quantisierung</label>
+            <select id="select-quantization" class="form-select">
+              <option value="16bit">16-Bit bfloat16 (Maximale Qualität & Präzision)</option>
+              <option value="8bit">8-Bit FP8 / Int8 (50% Speicher-Ersparnis, verlustfrei)</option>
+              <option value="4bit" selected>4-Bit AWQ / GPTQ (75% VRAM-Ersparnis, ultra-schnell)</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="background: rgba(15, 23, 42, 0.6); padding: 14px 18px; border-radius: 10px; border: 1px solid rgba(51, 65, 85, 0.5);">
+          <label style="font-weight: 700; font-size: 0.88rem; color: #38bdf8; display: block; margin-bottom: 10px;">📦 Im 1-Klick Download (.zip) enthaltene Komponenten:</label>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; font-size: 0.85rem;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" checked disabled> <span>🐍 <strong>model.py</strong> (PyTorch MoE Architektur)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" checked disabled> <span>🔌 <strong>api_server.py</strong> (OpenAI REST API)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" checked disabled> <span>💬 <strong>web_chat.py</strong> (Lokales Browser Studio)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" checked disabled> <span>⌨️ <strong>cli_chat.py</strong> (Terminal Streaming Chat)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" checked disabled> <span>🚂 <strong>train.py</strong> (GaLore Trainer & Checkpoints)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" checked disabled> <span>🚀 <strong>1-Klick Starter</strong> (.sh, .bat, Docker)</span>
+            </label>
           </div>
         </div>
       </div>
