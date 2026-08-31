@@ -116,6 +116,30 @@ class TestModularExpertManager(unittest.TestCase):
         # Check slot 12 has value from ckpt_b slot 0
         self.assertEqual(sd_14b["moe_layers.0.experts.12.w_gate.weight"][0, 0].item(), 100.0)
 
+    def test_splice_multi_models_12_packs(self):
+        """Tests fusing 12 distinct expert checkpoints into a single Multi-MoE supermodel."""
+        paths = []
+        for p_idx in range(12):
+            sd = {}
+            for l in range(2):
+                sd[f"moe_layers.{l}.router.gate.weight"] = torch.randn(1, self.d_model)
+                sd[f"moe_layers.{l}.experts.0.w_gate.weight"] = torch.full((self.hidden_dim, self.d_model), float(p_idx * 10))
+            p_file = os.path.join(self.temp_dir, f"model_pack_{p_idx}.pt")
+            torch.save({"model_state_dict": sd, "step": 100}, p_file)
+            paths.append(p_file)
+
+        fused_path = os.path.join(self.temp_dir, "galaxy_fused_12x.pt")
+        ModularExpertManager.splice_multi_models(paths, fused_path)
+
+        self.assertTrue(os.path.exists(fused_path))
+        fused_data = torch.load(fused_path, weights_only=False)
+        self.assertEqual(fused_data["num_experts"], 12)
+        fused_sd = fused_data["model_state_dict"]
+        # Router gate expanded to [12, d_model]
+        self.assertEqual(fused_sd["moe_layers.0.router.gate.weight"].shape, (12, self.d_model))
+        # Slot 11 matches pack 11
+        self.assertEqual(fused_sd["moe_layers.0.experts.11.w_gate.weight"][0, 0].item(), 110.0)
+
     def test_zero_shot_router_alignment(self):
         """Tests analytical cosine centroid alignment of router gates."""
         sd = {}

@@ -25,6 +25,7 @@ from pipeline.tokenizer import ViterbiTokenizer
 from pipeline.bitstream_graph_memory import BitstreamGraphMemory
 from pipeline.web_surfer import WebSurfer
 from pipeline.self_introspection import SelfArchitectureModel
+from pipeline.model_builder_engine import ModelArchitectureSpecs, MODEL_PRESETS
 from train_model import MultiGranularCausalTransformer
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -236,6 +237,14 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"status": "active", "thoughts": thoughts, "timeline": timeline}).encode("utf-8"))
             return
 
+        elif self.path == "/api/builder/presets":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(json.dumps(MODEL_PRESETS).encode("utf-8"))
+            return
+
         req_path = self.path.split("?")[0]
         if req_path == "/" or req_path == "":
             req_path = "/index.html"
@@ -343,6 +352,81 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(json.dumps({"results": results}).encode("utf-8"))
+            return
+
+        elif self.path == "/api/builder/calculate":
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
+            specs = ModelArchitectureSpecs(
+                name=body.get("name", "Custom-MoE"),
+                d_model=int(body.get("d_model", 2048)),
+                n_layers=int(body.get("n_layers", 24)),
+                n_heads=int(body.get("n_heads", 16)),
+                num_experts=int(body.get("num_experts", 12)),
+                top_k=int(body.get("top_k", 2)),
+                ffn_multiplier=float(body.get("ffn_multiplier", 2.6875)),
+                vocab_size=int(body.get("vocab_size", 262144)),
+                rank_embedding=int(body.get("rank_embedding", 64)),
+                max_seq_len=int(body.get("max_seq_len", 7168)),
+                expert_domains=body.get("expert_domains", {}),
+                guardrails=body.get("guardrails", {}),
+            )
+            result = specs.compute_hardware_footprint()
+            result["pytorch_code"] = specs.generate_pytorch_code()
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(json.dumps(result).encode("utf-8"))
+            return
+
+        elif self.path == "/api/builder/generate":
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
+            model_name = body.get("name", "Custom_MoE").replace(" ", "_").replace("-", "_")
+            specs = ModelArchitectureSpecs(
+                name=model_name,
+                d_model=int(body.get("d_model", 2048)),
+                n_layers=int(body.get("n_layers", 24)),
+                n_heads=int(body.get("n_heads", 16)),
+                num_experts=int(body.get("num_experts", 12)),
+                top_k=int(body.get("top_k", 2)),
+                ffn_multiplier=float(body.get("ffn_multiplier", 2.6875)),
+                vocab_size=int(body.get("vocab_size", 262144)),
+                rank_embedding=int(body.get("rank_embedding", 64)),
+                max_seq_len=int(body.get("max_seq_len", 7168)),
+                expert_domains=body.get("expert_domains", {}),
+                guardrails=body.get("guardrails", {}),
+            )
+            output_dir = os.path.join("/home/benjamin/Bilder/data/custom_models", model_name)
+            os.makedirs(output_dir, exist_ok=True)
+            code = specs.generate_pytorch_code()
+            code_file = os.path.join(output_dir, "model.py")
+            with open(code_file, "w", encoding="utf-8") as f:
+                f.write(code)
+            config_file = os.path.join(output_dir, "config.json")
+            footprint = specs.compute_hardware_footprint()
+            with open(config_file, "w", encoding="utf-8") as f:
+                json.dump({
+                    "name": model_name,
+                    "specs": specs.__dict__,
+                    "footprint": footprint,
+                }, f, indent=2)
+
+            res = {
+                "status": "success",
+                "message": f"Modell '{model_name}' erfolgreich generiert!",
+                "output_dir": output_dir,
+                "code_file": code_file,
+                "config_file": config_file,
+                "footprint": footprint,
+            }
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
             return
 
         elif self.path in ("/api/chat", "/api/chat/stream"):

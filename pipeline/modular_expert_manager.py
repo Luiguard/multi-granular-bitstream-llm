@@ -155,55 +155,84 @@ class ModularExpertManager:
         output_14b_path: str,
     ) -> str:
         """Splices two 12-expert checkpoints into a single 24-expert 14.2B model checkpoint."""
-        print(f"  🧬 Starte MoE-Splicing: {checkpoint_a} + {checkpoint_b} -> 14B...")
-        ckpt_a = torch.load(checkpoint_a, map_location="cpu", weights_only=False)
-        sd_a = ckpt_a["model_state_dict"] if (isinstance(ckpt_a, dict) and "model_state_dict" in ckpt_a) else ckpt_a
+        return ModularExpertManager.splice_multi_models([checkpoint_a, checkpoint_b], output_14b_path)
 
-        ckpt_b = torch.load(checkpoint_b, map_location="cpu", weights_only=False)
-        sd_b = ckpt_b["model_state_dict"] if (isinstance(ckpt_b, dict) and "model_state_dict" in ckpt_b) else ckpt_b
+    @staticmethod
+    def splice_multi_models(
+        checkpoint_paths: List[str],
+        output_path: str,
+    ) -> str:
+        """Splices N arbitrary model checkpoints (e.g. 12x 144B models) into a unified Multi-MoE supermodel."""
+        if not checkpoint_paths:
+            raise ValueError("Mindestens 1 Checkpoint-Pfad muss angegeben werden!")
 
-        sd_14b = copy.deepcopy(sd_a)
+        print(f"  🧬 Starte Multi-Modell MoE-Splicing über {len(checkpoint_paths)} Checkpoints...")
+        
+        # Load base checkpoint 0
+        base_ckpt = torch.load(checkpoint_paths[0], map_location="cpu", weights_only=False)
+        base_sd = base_ckpt["model_state_dict"] if (isinstance(base_ckpt, dict) and "model_state_dict" in base_ckpt) else base_ckpt
+        
+        fused_sd = copy.deepcopy(base_sd)
+        current_expert_offset = 0
+        
+        # Discover experts per layer in base
+        base_exp_count = len(set(
+            int(k.split(".")[k.split(".").index("experts") + 1])
+            for k in base_sd.keys() if ".experts." in k
+        )) or 1
+        current_expert_offset = base_exp_count
 
-        # 1. Map all experts from ckpt_b into slots 12 to 23
-        for k, v in sd_b.items():
-            if ".experts." in k:
-                parts = k.split(".")
-                new_parts = []
-                for idx, p in enumerate(parts):
-                    if p == "experts" and idx + 1 < len(parts) and parts[idx + 1].isdigit():
-                        old_exp = int(parts[idx + 1])
-                        new_exp = old_exp + 12  # Slots 12-23
+        for ckpt_idx in range(1, len(checkpoint_paths)):
+            src_path = checkpoint_paths[ckpt_idx]
+            ckpt = torch.load(src_path, map_location="cpu", weights_only=False)
+            sd = ckpt["model_state_dict"] if (isinstance(ckpt, dict) and "model_state_dict" in ckpt) else ckpt
+
+            src_exp_count = len(set(
+                int(k.split(".")[k.split(".").index("experts") + 1])
+                for k in sd.keys() if ".experts." in k
+            )) or 1
+
+            for k, v in sd.items():
+                if ".experts." in k:
+                    parts = k.split(".")
+                    new_parts = []
+                    for idx, p in enumerate(parts):
+                        if p == "experts" and idx + 1 < len(parts) and parts[idx + 1].isdigit():
+                            old_exp = int(parts[idx + 1])
+                            new_exp = old_exp + current_expert_offset
+                            new_parts.append(p)
+                            new_parts.append(str(new_exp))
+                            continue
+                        if idx > 0 and parts[idx - 1] == "experts" and p.isdigit():
+                            continue
                         new_parts.append(p)
-                        new_parts.append(str(new_exp))
-                        continue
-                    if idx > 0 and parts[idx - 1] == "experts" and p.isdigit():
-                        continue
-                    new_parts.append(p)
 
-                new_key = ".".join(new_parts)
-                sd_14b[new_key] = v.clone()
+                    new_key = ".".join(new_parts)
+                    fused_sd[new_key] = v.clone()
 
-        # 2. Expand router gates from 12 to 24 outputs
-        for k, v in list(sd_14b.items()):
-            if ".router.gate.weight" in k:
-                # Shape: [12, d_model] -> [24, d_model]
-                w_a = v
-                w_b = sd_b[k]
-                w_24 = torch.cat([w_a, w_b], dim=0)
-                sd_14b[k] = w_24
+            # Expand router gates
+            for k, v in list(fused_sd.items()):
+                if ".router.gate.weight" in k and k in sd:
+                    fused_sd[k] = torch.cat([fused_sd[k], sd[k]], dim=0)
 
-        ckpt_14b = {
-            "step": max(ckpt_a.get("step", 0), ckpt_b.get("step", 0)),
-            "tokens_processed": ckpt_a.get("tokens_processed", 0) + ckpt_b.get("tokens_processed", 0),
-            "model_state_dict": sd_14b,
-            "num_experts": 24,
-            "architecture": "14B Sparse MoE (24 Experts / Top-2)",
+            current_expert_offset += src_exp_count
+
+        total_experts = current_expert_offset
+        fused_ckpt = {
+            "step": max(base_ckpt.get("step", 0) if isinstance(base_ckpt, dict) else 0, 0),
+            "tokens_processed": sum(
+                (torch.load(p, map_location="cpu", weights_only=False).get("tokens_processed", 0) if isinstance(torch.load(p, map_location="cpu", weights_only=False), dict) else 0)
+                for p in checkpoint_paths
+            ),
+            "model_state_dict": fused_sd,
+            "num_experts": total_experts,
+            "architecture": f"Multi-MoE Unified Supermodel ({len(checkpoint_paths)} Modul-Packs / {total_experts} Gesamt-Experten)",
         }
 
-        os.makedirs(os.path.dirname(os.path.abspath(output_14b_path)), exist_ok=True)
-        torch.save(ckpt_14b, output_14b_path)
-        print(f"  🎉 14.2B Modell mit 24 Experten erfolgreich erzeugt -> {output_14b_path}")
-        return output_14b_path
+        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+        torch.save(fused_ckpt, output_path)
+        print(f"  🎉 Multi-MoE Modell mit {total_experts} Experten erfolgreich fusioniert -> {output_path}")
+        return output_path
 
     @staticmethod
     def align_router_zero_shot(state_dict: Dict[str, torch.Tensor], num_experts: int = 12) -> Dict[str, torch.Tensor]:

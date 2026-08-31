@@ -86,8 +86,11 @@ flowchart TD
    - Ermöglicht das modulare Exportieren, Importieren und Inspizieren von Experten-Paketen.
    - Unterstützt analytisches **Zero-Shot Router Alignment** via Kosinus-Schwerpunkt-Normalisierung.
    - Ermöglicht das **Splicen von zwei 12-Experten Checkpoints zu einem 24-Experten 14.2B Modell** (`splice_to_14b`).
-   - `Top2GatingRouter` unterstützt sanftes **Domänen-Cluster-Gating** (Cluster 0: Cyber/Code, Cluster 1: STEM/Mathe, Cluster 2: Weltwissen/Logik).
-6. **Autonome Nachtruhe & Shard-Erstellung ([`pipeline/autonomous_epistemic_learner.py`](file:///home/benjamin/Bilder/pipeline/autonomous_epistemic_learner.py))**:
+6. **Bitstream AI Architecture Studio & Model Builder ([`pipeline/model_builder_engine.py`](file:///home/benjamin/Bilder/pipeline/model_builder_engine.py))**:
+   - Interaktiver Web-Baukasten ([`dashboard/static/builder.html`](file:///home/benjamin/Bilder/dashboard/static/builder.html)) für beliebige Architekturen von **100M Edge (1 Experte)** über **144B Single-Experte (Dense)** bis zu **1.73T Multi-MoE (12× 144B Spliced)**.
+   - Echtzeit-Hardware-Simulator für VRAM/RAM-Bedarf bei Training und Inferenz (16-Bit, 8-Bit, 4-Bit).
+   - Multi-Modell Fusion (`splice_multi_models`): Fügt beliebig viele Checkpoints zu einem gemeinsamen Super-MoE zusammen.
+7. **Autonome Nachtruhe & Shard-Erstellung ([`pipeline/autonomous_epistemic_learner.py`](file:///home/benjamin/Bilder/pipeline/autonomous_epistemic_learner.py))**:
    - Schaltet täglich von 21:00 bis 09:00 Uhr die GPU in den $0\%$-Standby ($41^\circ\text{C}$ / 15W).
    - Sammelt im Hintergrund mit minimaler CPU-Last (`nice -n 19`) neue Shards mit SHA-256 Deduplizierung.
 
@@ -97,7 +100,10 @@ flowchart TD
 
 ### 1. Test-Suite ausführen
 ```bash
-# Überprüft Modulares Experten-Management, 14B-Splicing & Router Alignment
+# Überprüft den KI Model Builder, Topologie-Berechnungen (100M bis 1.7T) & Code-Generierung
+.venv/bin/python tests/test_model_builder.py
+
+# Überprüft Modulares Experten-Management, Multi-Model Splicing & Router Alignment
 .venv/bin/python tests/test_modular_expert_manager.py
 
 # Überprüft 18-Bit Bitstream, Viterbi-Rekonstruktion und Checkpoint

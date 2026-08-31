@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bitstream AI Architecture Studio | KI Model Builder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="chat.css">
+  <link rel="stylesheet" href="builder.css">
+</head>
+<body class="dark-theme">
+  <!-- Top App Navigation -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-mark">
+        <span class="logo-icon">🛠️</span>
+        <div class="logo-glow"></div>
+      </div>
+      <div>
+        <h1 class="app-title">Bitstream AI Architecture Studio</h1>
+        <p class="app-subtitle">Modularer MoE KI-Baukasten · 100M bis 144B · 1 bis 128 Experten</p>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <nav class="nav-links">
+        <a href="/" class="nav-btn" id="nav-dashboard">📊 Telemetrie Dashboard</a>
+        <a href="/chat.html" class="nav-btn" id="nav-chat">💬 KI Chat Studio</a>
+        <a href="/builder.html" class="nav-btn active" id="nav-builder">🛠️ KI Model Builder</a>
+      </nav>
+      <span class="badge badge-primary" id="vocab-badge">18-Bit Vokabular (262k)</span>
+    </div>
+  </header>
+
+  <!-- Main Studio Layout -->
+  <main class="builder-layout">
+    <!-- Left Configuration Panel -->
+    <section class="builder-config-panel">
+      <!-- Preset Quick Selection -->
+      <div class="panel-section">
+        <h2 class="section-title">⚡ 1. Modell-Presets</h2>
+        <div class="presets-grid" id="presets-container">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- Architecture Dimensions -->
+      <div class="panel-section">
+        <h2 class="section-title">📐 2. Topologie & Dimensionen</h2>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="input-model-name">Modell-Name</label>
+            <input type="text" id="input-model-name" class="form-input" value="Bitstream-Custom-MoE">
+          </div>
+          <div class="form-group">
+            <label for="select-d-model">Embedding Dimension ($d_{model}$)</label>
+            <select id="select-d-model" class="form-select">
+              <option value="512">512 (Edge / Tiny 100M)</option>
+              <option value="768">768 (Small 300M)</option>
+              <option value="1024">1024 (Medium 1B)</option>
+              <option value="2048" selected>2048 (Base / Laptop 7B-14B)</option>
+              <option value="4096">4096 (Large / 30B-70B)</option>
+              <option value="8192">8192 (Titan MoE / 70B-144B)</option>
+              <option value="12288">12288 (Dense Titan 144B Single-Experte)</option>
+              <option value="16384">16384 (Frontier Ultra 200B+)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="select-layers">Transformer Schichten (Layers)</label>
+            <select id="select-layers" class="form-select">
+              <option value="8">8 Schichten</option>
+              <option value="12">12 Schichten</option>
+              <option value="16">16 Schichten</option>
+              <option value="24" selected>24 Schichten (Standard)</option>
+              <option value="32">32 Schichten</option>
+              <option value="48">48 Schichten</option>
+              <option value="64">64 Schichten</option>
+              <option value="80">80 Schichten (144B Dense)</option>
+              <option value="96">96 Schichten (Deep Titan)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="select-heads">Attention Köpfe (Heads)</label>
+            <select id="select-heads" class="form-select">
+              <option value="8">8 Köpfe</option>
+              <option value="12">12 Köpfe</option>
+              <option value="16" selected>16 Köpfe</option>
+              <option value="32">32 Köpfe</option>
+              <option value="64">64 Köpfe</option>
+              <option value="96">96 Köpfe (144B)</option>
+              <option value="128">128 Köpfe</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="select-experts">Experten-Anzahl ($N_{\text{experts}}$)</label>
+            <select id="select-experts" class="form-select">
+              <option value="1">1 Experte (100% Dense Single-Core: 100M bis 144B)</option>
+              <option value="2">2 Experten</option>
+              <option value="4">4 Experten (Edge MoE)</option>
+              <option value="8">8 Experten</option>
+              <option value="12" selected>12 Experten (Laptop Sweet-Spot)</option>
+              <option value="16">16 Experten</option>
+              <option value="24">24 Experten (14.2B Spliced)</option>
+              <option value="32">32 Experten</option>
+              <option value="64">64 Experten (70B Frontier)</option>
+              <option value="128">128 Experten (144B Mega-Titan)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="select-top-k">Aktive Experten pro Token (Top-$k$)</label>
+            <select id="select-top-k" class="form-select">
+              <option value="1">Top-1 (Maximale Sparsity)</option>
+              <option value="2" selected>Top-2 (Optimales Blending)</option>
+              <option value="4">Top-4 (Hohe Kapazität)</option>
+              <option value="8">Top-8 (Deep Ensemble)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="select-seq-len">Kontext-Länge ($T_{\text{max}}$)</label>
+            <select id="select-seq-len" class="form-select">
+              <option value="4096">4.096 Tokens</option>
+              <option value="7168" selected>7.168 Tokens (Aktueller Standard)</option>
+              <option value="8192">8.192 Tokens</option>
+              <option value="16384">16.384 Tokens (YaRN 2x)</option>
+              <option value="32768">32.768 Tokens (YaRN 4x)</option>
+              <option value="65536">65.536 Tokens (Ultra-Long)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="select-vocab">Vokabular-Breite</label>
+            <select id="select-vocab" class="form-select">
+              <option value="262144" selected>18-Bit Viterbi (262.144 Tokens)</option>
+              <option value="65536">16-Bit Viterbi (65.536 Tokens)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Domain Specialization Matrix -->
+      <div class="panel-section">
+        <h2 class="section-title">🧠 3. Domänen-Spezialisierungs-Matrix</h2>
+        <p class="section-desc">Weise den Experten-Clustern ihre Wissensgebiete zu:</p>
+        <div class="domain-matrix-grid">
+          <div class="domain-card active" data-domain="cyber">
+            <span class="domain-icon">💻</span>
+            <div class="domain-info">
+              <h4>Cyber & Code</h4>
+              <p>Python, Rust, AST-Makros, Netzwerk-Protokolle</p>
+            </div>
+            <span class="cluster-tag">Cluster 0 (Exp 0-3)</span>
+          </div>
+          <div class="domain-card active" data-domain="stem">
+            <span class="domain-icon">📐</span>
+            <div class="domain-info">
+              <h4>STEM & Mathematik</h4>
+              <p>Formale Beweise, Quantenphysik, Algorithmen</p>
+            </div>
+            <span class="cluster-tag">Cluster 1 (Exp 4-7)</span>
+          </div>
+          <div class="domain-card active" data-domain="world">
+            <span class="domain-icon">📚</span>
+            <div class="domain-info">
+              <h4>Weltwissen & Sprache</h4>
+              <p>Wiki-DE, Gutenberg, FineWeb-Edu, Historie</p>
+            </div>
+            <span class="cluster-tag">Cluster 2 (Exp 8-11)</span>
+          </div>
+          <div class="domain-card" data-domain="reasoning">
+            <span class="domain-icon">🔬</span>
+            <div class="domain-info">
+              <h4>AI Deep Reasoning</h4>
+              <p>Step-by-Step Chain-of-Thought, StackExchange</p>
+            </div>
+            <span class="cluster-tag">Cluster 3 (Exp 12-15)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Guardrails & Alignment Studio -->
+      <div class="panel-section">
+        <h2 class="section-title">🛡️ 4. Guardrails & RLVR-Ausrichtung</h2>
+        <div class="slider-grid">
+          <div class="slider-group">
+            <div class="slider-header">
+              <label>RLVR Sandbox-Verifikation</label>
+              <span class="slider-val" id="val-rlvr">85%</span>
+            </div>
+            <input type="range" min="0" max="100" value="85" class="form-range" id="range-rlvr">
+            <small>Erzwingt isolierte Python/Math-Ausführung vor der Antwort</small>
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <label>Halluzinations-Schutz (Epistemisch)</label>
+              <span class="slider-val" id="val-guard">90%</span>
+            </div>
+            <input type="range" min="0" max="100" value="90" class="form-range" id="range-guard">
+            <small>Blockiert geratene Scheinfakten bei Wissenslücken</small>
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <label>Autonome Web-Neugier</label>
+              <span class="slider-val" id="val-curiosity">75%</span>
+            </div>
+            <input type="range" min="0" max="100" value="75" class="form-range" id="range-curiosity">
+            <small>Trigger für autonomes Nachforschen bei hohem Loss</small>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Live Hardware & Code Inspector -->
+    <section class="builder-inspect-panel">
+      <!-- Live Metrics Hero -->
+      <div class="inspect-hero-card">
+        <div class="hero-stats-grid">
+          <div class="hero-stat">
+            <span class="stat-label">Gesamt-Parameter</span>
+            <span class="stat-val highlight-cyan" id="stat-total-params">7.45 Mrd.</span>
+            <span class="stat-sub" id="stat-total-sub">24 Schichten · 12 Experten</span>
+          </div>
+          <div class="hero-stat">
+            <span class="stat-label">Aktiv pro Token</span>
+            <span class="stat-val highlight-green" id="stat-active-params">480 Mio.</span>
+            <span class="stat-sub" id="stat-active-sub">Top-2 Routing</span>
+          </div>
+          <div class="hero-stat">
+            <span class="stat-label">Sparsity-Faktor</span>
+            <span class="stat-val highlight-purple" id="stat-sparsity">93.6%</span>
+            <span class="stat-sub">Effizienz-Gewinn</span>
+          </div>
+        </div>
+
+        <!-- Hardware Feasibility Banner -->
+        <div class="feasibility-banner" id="feasibility-banner">
+          <span class="feasibility-icon" id="feasibility-icon">🟢</span>
+          <div class="feasibility-text">
+            <strong id="feasibility-title">Läuft & trainiert auf Laptop (RTX 3060 6GB + 32GB RAM)</strong>
+            <p id="feasibility-desc">16-Bit Training mit GaLore & JIT Layer Offloading erfordert nur 5.19 GB VRAM.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Memory Breakdown Matrix -->
+      <div class="panel-section">
+        <h2 class="section-title">📊 Speicher-Bedarf (VRAM & RAM)</h2>
+        <div class="memory-spec-grid">
+          <div class="mem-spec-card">
+            <span class="mem-type">16-Bit Training (GPU)</span>
+            <span class="mem-size" id="mem-train-gpu">5.19 GB</span>
+            <small>JIT Layer + GaLore</small>
+          </div>
+          <div class="mem-spec-card">
+            <span class="mem-type">16-Bit Training (RAM)</span>
+            <span class="mem-size" id="mem-train-ram">18.9 GB</span>
+            <small>Inkl. Betriebssystem</small>
+          </div>
+          <div class="mem-spec-card">
+            <span class="mem-type">4-Bit Inferenz (VRAM)</span>
+            <span class="mem-size" id="mem-infer-vram">4.27 GB</span>
+            <small>100% im GPU VRAM</small>
+          </div>
+          <div class="mem-spec-card">
+            <span class="mem-type">14B Hybrid (RAM)</span>
+            <span class="mem-size" id="mem-infer-hybrid-ram">10.8 GB</span>
+            <small>Top-2 Streaming</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- PyTorch Code Generator Preview -->
+      <div class="panel-section code-preview-section">
+        <div class="code-header">
+          <h2 class="section-title">🐍 Generierter PyTorch Code</h2>
+          <button class="btn btn-secondary btn-sm" id="btn-copy-code">📋 Code Kopieren</button>
+        </div>
+        <pre class="code-preview-block"><code id="code-output"># Lade Konfiguration...</code></pre>
+      </div>
+
+      <!-- Action Footer -->
+      <div class="builder-actions-card">
+        <button class="btn btn-primary btn-lg" id="btn-generate-model">
+          <span>⚡ Modell-Architektur Kompilieren & Speichern</span>
+        </button>
+        <button class="btn btn-secondary btn-lg" id="btn-export-recipe">
+          <span>💾 Trainings-Rezept (.json) Exportieren</span>
+        </button>
+      </div>
+
+      <!-- Status Toast / Alert -->
+      <div id="builder-toast" class="builder-toast" style="display: none;"></div>
+    </section>
+  </main>
+
+  <script src="builder.js"></script>
+</body>
+</html>
