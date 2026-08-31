@@ -157,9 +157,10 @@ def train_30day_world_model():
     # CHECKPOINT RESUME & PRE-TRAINED WARM-START (ZERO-RAM META INIT & MMAP)
     # -------------------------------------------------------------------------
     step = 0
-    tokens_processed = 0
-    loss_history = []
+    tokens_processed: int = 0
+    loss_history: List[float] = []
     latest_eval_metrics = None
+    current_lr: float = args.lr_min
     
     moe_latest_ckpt = os.path.join(args.checkpoint_dir, "7b_checkpoint_latest.pt")
     base_latest_ckpt = os.path.join(args.checkpoint_dir, "checkpoint_latest.pt")
@@ -355,8 +356,8 @@ def train_30day_world_model():
                     current_loss=loss_history[-1] if loss_history else 8.0,
                     shards_count=live_shards_count,
                     loss_history=loss_history,
-                    tokens_processed=tokens_processed,
-                    current_lr=current_lr if 'current_lr' in locals() else args.lr_min,
+                    tokens_processed=int(tokens_processed) if tokens_processed is not None else 0,
+                    current_lr=current_lr,
                     graph_state=graph_telemetry,
                     active_node_name=f"💤 Ruhemodus ({pause_reason})",
                     eval_metrics=latest_eval_metrics,
