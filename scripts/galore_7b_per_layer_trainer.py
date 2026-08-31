@@ -186,7 +186,7 @@ def train_30day_world_model():
             if isinstance(ckpt, dict):
                 step = int(ckpt.get("step", 0))
                 raw_tokens = ckpt.get("tokens_processed")
-                tokens_processed = int(raw_tokens) if raw_tokens is not None else int(step * 7168)
+                tokens_processed = int(raw_tokens) if raw_tokens is not None else (step * 7168)
                 loss_history = ckpt.get("loss_history", [])
                 latest_eval_metrics = ckpt.get("latest_eval_metrics")
                 if "training_graph_state" in ckpt:
