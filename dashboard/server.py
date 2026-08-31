@@ -429,6 +429,38 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(res).encode("utf-8"))
             return
 
+        elif self.path == "/api/builder/download_bundle":
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
+            model_name = body.get("name", "Custom_MoE").replace(" ", "_").replace("-", "_")
+            specs = ModelArchitectureSpecs(
+                name=model_name,
+                d_model=int(body.get("d_model", 2048)),
+                n_layers=int(body.get("n_layers", 24)),
+                n_heads=int(body.get("n_heads", 16)),
+                num_experts=int(body.get("num_experts", 12)),
+                top_k=int(body.get("top_k", 2)),
+                ffn_multiplier=float(body.get("ffn_multiplier", 2.0)),
+                vocab_size=int(body.get("vocab_size", 262144)),
+                rank_embedding=int(body.get("rank_embedding", 64)),
+                max_seq_len=int(body.get("max_seq_len", 7168)),
+                expert_domains=body.get("expert_domains", {}),
+                guardrails=body.get("guardrails", {}),
+            )
+            zip_path = f"/home/benjamin/Bilder/data/custom_models/{model_name}_training_bundle.zip"
+            specs.create_training_bundle_zip(zip_path)
+
+            with open(zip_path, "rb") as f:
+                zip_bytes = f.read()
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/zip")
+            self.send_header("Content-Disposition", f'attachment; filename="{model_name}_training_bundle.zip"')
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(zip_bytes)
+            return
+
         elif self.path in ("/api/chat", "/api/chat/stream"):
             length = int(self.headers.get("Content-Length", 0))
             body = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}

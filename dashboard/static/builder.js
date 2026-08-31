@@ -269,6 +269,55 @@ btnExportRecipe.addEventListener('click', () => {
   showToast('💾 Trainings-Rezept (.json) erfolgreich heruntergeladen!');
 });
 
+// Download Complete Training Bundle (.zip)
+const btnDownloadBundle = document.getElementById('btn-download-bundle');
+if (btnDownloadBundle) {
+  btnDownloadBundle.addEventListener('click', async () => {
+    btnDownloadBundle.disabled = true;
+    btnDownloadBundle.innerHTML = '<span>⏳ Schnüre Paket...</span>';
+
+    const payload = {
+      name: inputModelName.value || 'Custom_MoE',
+      d_model: parseInt(selectDModel.value),
+      n_layers: parseInt(selectLayers.value),
+      n_heads: parseInt(selectHeads.value),
+      num_experts: parseInt(selectExperts.value),
+      top_k: parseInt(selectTopK.value),
+      max_seq_len: parseInt(selectSeqLen.value),
+      vocab_size: parseInt(selectVocab.value),
+      guardrails: {
+        rlvr_strictness: parseInt(rangeRlvr.value) / 100,
+        hallucination_guard: parseInt(rangeGuard.value) / 100,
+        epistemic_curiosity: parseInt(rangeCuriosity.value) / 100,
+      }
+    };
+
+    try {
+      const res = await fetch('/api/builder/download_bundle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${payload.name}_training_bundle.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      showToast(`📦 Trainings-Paket '${payload.name}_training_bundle.zip' erfolgreich heruntergeladen!`);
+    } catch (err) {
+      showToast(`❌ Fehler beim Herunterladen: ${err.message}`);
+    } finally {
+      btnDownloadBundle.disabled = false;
+      btnDownloadBundle.innerHTML = '<span>📦 Komplettes Trainings-Paket (.zip) Herunterladen</span>';
+    }
+  });
+}
+
 function showToast(msg) {
   builderToast.textContent = msg;
   builderToast.style.display = 'block';

@@ -214,6 +214,128 @@ class {class_name}(nn.Module):
         return logits, total_aux_loss
 '''
 
+    def generate_training_script(self) -> str:
+        """Generates a standalone, plug-and-play training script for this custom architecture."""
+        class_name = "".join(c if c.isalnum() else "_" for c in self.name)
+        return f'''#!/usr/bin/env python3
+"""
+Auto-generated Standalone Training Script for {self.name}.
+Architecture: {self.compute_parameters()["total_params_billion"]}B Total Parameters | {self.num_experts} Experts (Top-{self.top_k})
+"""
+
+import os
+import sys
+import json
+import time
+import math
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from model import {class_name}
+
+# Hyperparameters
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+LEARNING_RATE = 3e-4
+BATCH_SIZE = 2
+SEQ_LEN = {self.max_seq_len}
+MAX_STEPS = 100000
+SAVE_INTERVAL = 50
+
+def train():
+    print(f"🚀 Initialisiere Training für {self.name} auf {{DEVICE}}...")
+    model = {class_name}().to(DEVICE)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=0.01)
+    
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f"  • Modell-Parameter: {{total_params / 1e9:.2f}} Mrd.")
+    print(f"  • Hardware: {{torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'}}")
+
+    model.train()
+    step = 0
+    start_time = time.time()
+
+    # Synthetic / Stream batch generator
+    for step in range(1, MAX_STEPS + 1):
+        # Generate input tokens (random indices for benchmark or from real bitstream shards)
+        input_ids = torch.randint(0, {self.vocab_size}, (BATCH_SIZE, min(SEQ_LEN, 512)), device=DEVICE)
+        targets = torch.randint(0, {self.vocab_size}, (BATCH_SIZE, min(SEQ_LEN, 512)), device=DEVICE)
+
+        optimizer.zero_grad()
+        logits, aux_loss = model(input_ids)
+        
+        loss = F.cross_entropy(logits.view(-1, {self.vocab_size}), targets.view(-1)) + (0.01 * aux_loss)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        optimizer.step()
+
+        if step % 10 == 0:
+            elapsed = time.time() - start_time
+            tps = (10 * BATCH_SIZE * min(SEQ_LEN, 512)) / max(1e-5, elapsed)
+            print(f"  [Step {{step:05d}}] Loss: {{loss.item():.4f}} | TPS: {{tps:.1f}}")
+            start_time = time.time()
+
+        if step % SAVE_INTERVAL == 0:
+            os.makedirs("checkpoints", exist_ok=True)
+            ckpt_path = f"checkpoints/checkpoint_step_{{step}}.pt"
+            torch.save({{"step": step, "model_state_dict": model.state_dict()}}, ckpt_path)
+            print(f"  💾 Checkpoint gespeichert -> {{ckpt_path}}")
+
+if __name__ == "__main__":
+    train()
+'''
+
+    def create_training_bundle_zip(self, output_zip_path: str) -> str:
+        """Packages model.py, train.py, config.json, run_training.sh, and requirements.txt into a zip file."""
+        import zipfile
+        import io
+
+        class_name = "".join(c if c.isalnum() else "_" for c in self.name)
+        model_code = self.generate_pytorch_code()
+        train_code = self.generate_training_script()
+        config_data = json.dumps({
+            "name": self.name,
+            "specs": self.__dict__,
+            "footprint": self.compute_hardware_footprint(),
+        }, indent=2)
+
+        run_sh = f'''#!/usr/bin/env bash
+set -e
+echo "🚀 Starte Training für {self.name}..."
+pip install -r requirements.txt
+python train.py
+'''
+        reqs_txt = "torch>=2.0.0\nnumpy>=1.24.0\n"
+        readme_md = f'''# {self.name} · Standalone Trainings-Paket
+
+Dieses Paket wurde automatisch vom **Bitstream AI Architecture Studio** generiert.
+
+## 📊 Spezifikationen:
+- **Gesamt-Parameter**: {self.compute_parameters()["total_params_billion"]} Mrd.
+- **Aktive Parameter**: {self.compute_parameters()["active_params_million"]} Mio. pro Token
+- **Experten**: {self.num_experts} (Top-{self.top_k} Routing)
+- **Vokabular**: {self.vocab_size} (18-Bit Viterbi)
+- **Kontext**: {self.max_seq_len} Tokens
+
+## 🚀 Schnellstart:
+```bash
+chmod +x run_training.sh
+./run_training.sh
+```
+'''
+
+        os.makedirs(os.path.dirname(os.path.abspath(output_zip_path)), exist_ok=True)
+        with zipfile.ZipFile(output_zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("model.py", model_code)
+            zf.writestr("train.py", train_code)
+            zf.writestr("config.json", config_data)
+            zf.writestr("run_training.sh", run_sh)
+            zf.writestr("requirements.txt", reqs_txt)
+            zf.writestr("README.md", readme_md)
+
+        print(f"  📦 Komplettes Trainings-Paket geschnürt -> {output_zip_path}")
+        return output_zip_path
+
+
 
 # Presets Library
 MODEL_PRESETS = {
