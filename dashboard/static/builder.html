@@ -48,23 +48,39 @@
 
       <!-- Architecture Dimensions -->
       <div class="panel-section">
-        <h2 class="section-title">📐 2. Topologie & Dimensionen</h2>
+        <h2 class="section-title">📐 2. Topologie & Experten-Aufteilung</h2>
+
+        <!-- Mode Switch: 1 Experte (Dense) vs. Auf mehrere Experten gesplittet (MoE) -->
+        <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; padding: 14px; margin-bottom: 18px;">
+          <label style="font-weight: 700; font-size: 0.9rem; color: #38bdf8; display: block; margin-bottom: 8px;">🧠 Architektur-Auswahl:</label>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <button type="button" id="btn-mode-dense" class="btn btn-secondary btn-sm" style="flex: 1; min-width: 240px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <span>🎯 <strong>1 Monolithischer Experte</strong> (100% Dense / 100M bis 144B)</span>
+            </button>
+            <button type="button" id="btn-mode-moe" class="btn btn-secondary btn-sm active" style="flex: 1; min-width: 240px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <span>🧬 <strong>Auf mehrere Experten gesplittet</strong> (Sparse MoE / 2 bis 128 Exp)</span>
+            </button>
+          </div>
+        </div>
+
         <div class="form-grid">
           <div class="form-group">
             <label for="input-model-name">Modell-Name</label>
             <input type="text" id="input-model-name" class="form-input" value="Bitstream-Custom-MoE">
           </div>
           <div class="form-group">
-            <label for="select-d-model">Embedding Dimension ($d_{model}$)</label>
+            <label for="select-d-model">Modell-Größe ($d_{model}$)</label>
             <select id="select-d-model" class="form-select">
-              <option value="512">512 (Edge / Tiny 100M)</option>
-              <option value="768">768 (Small 300M)</option>
-              <option value="1024">1024 (Medium 1B)</option>
-              <option value="2048" selected>2048 (Base / Laptop 7B-14B)</option>
-              <option value="4096">4096 (Large / 30B-70B)</option>
-              <option value="8192">8192 (Titan MoE / 70B-144B)</option>
-              <option value="12288">12288 (Dense Titan 144B Single-Experte)</option>
-              <option value="16384">16384 (Frontier Ultra 200B+)</option>
+              <option value="512">512 (100M Single-Core)</option>
+              <option value="768">768 (300M Single-Core)</option>
+              <option value="1024">1024 (1B Single-Core)</option>
+              <option value="1536">1536 (3B Single-Core)</option>
+              <option value="2048" selected>2048 (7.45B Base Core)</option>
+              <option value="3072">3072 (14B Pro Core)</option>
+              <option value="4096">4096 (30B Large Core)</option>
+              <option value="8192">8192 (70B Frontier Core)</option>
+              <option value="12288">12288 (144B Titan Core)</option>
+              <option value="16384">16384 (200B+ Ultra Core)</option>
             </select>
           </div>
           <div class="form-group">
@@ -73,11 +89,13 @@
               <option value="8">8 Schichten</option>
               <option value="12">12 Schichten</option>
               <option value="16">16 Schichten</option>
+              <option value="20">20 Schichten</option>
               <option value="24" selected>24 Schichten (Standard)</option>
+              <option value="28">28 Schichten</option>
               <option value="32">32 Schichten</option>
               <option value="48">48 Schichten</option>
               <option value="64">64 Schichten</option>
-              <option value="80">80 Schichten (144B Dense)</option>
+              <option value="80">80 Schichten (144B)</option>
               <option value="96">96 Schichten (Deep Titan)</option>
             </select>
           </div>
@@ -87,16 +105,17 @@
               <option value="8">8 Köpfe</option>
               <option value="12">12 Köpfe</option>
               <option value="16" selected>16 Köpfe</option>
+              <option value="24">24 Köpfe</option>
               <option value="32">32 Köpfe</option>
               <option value="64">64 Köpfe</option>
               <option value="96">96 Köpfe (144B)</option>
               <option value="128">128 Köpfe</option>
             </select>
           </div>
-          <div class="form-group">
+          <div class="form-group" id="group-experts">
             <label for="select-experts">Experten-Anzahl ($N_{\text{experts}}$)</label>
             <select id="select-experts" class="form-select">
-              <option value="1">1 Experte (100% Dense Single-Core: 100M bis 144B)</option>
+              <option value="1">1 Experte (Monolithisch 100% Dense)</option>
               <option value="2">2 Experten</option>
               <option value="4">4 Experten (Edge MoE)</option>
               <option value="8">8 Experten</option>
@@ -108,7 +127,7 @@
               <option value="128">128 Experten (144B Mega-Titan)</option>
             </select>
           </div>
-          <div class="form-group">
+          <div class="form-group" id="group-top-k">
             <label for="select-top-k">Aktive Experten pro Token (Top-$k$)</label>
             <select id="select-top-k" class="form-select">
               <option value="1">Top-1 (Maximale Sparsity)</option>

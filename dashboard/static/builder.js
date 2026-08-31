@@ -48,15 +48,59 @@ const builderToast = document.getElementById('builder-toast');
 
 const selectHardwareProfile = document.getElementById('select-hardware-profile');
 const selectQuantization = document.getElementById('select-quantization');
+const btnModeDense = document.getElementById('btn-mode-dense');
+const btnModeMoe = document.getElementById('btn-mode-moe');
+const groupTopK = document.getElementById('group-top-k');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
   setupSliderListeners();
+  setupModeSwitcher();
   setupFormListeners();
   setupDomainCards();
   await loadPresets();
   triggerRecalculation();
 });
+
+function setupModeSwitcher() {
+  if (btnModeDense) {
+    btnModeDense.addEventListener('click', () => {
+      btnModeDense.classList.add('active');
+      btnModeMoe.classList.remove('active');
+      selectExperts.value = '1';
+      selectTopK.value = '1';
+      if (groupTopK) groupTopK.style.opacity = '0.5';
+      triggerRecalculation();
+    });
+  }
+
+  if (btnModeMoe) {
+    btnModeMoe.addEventListener('click', () => {
+      btnModeMoe.classList.add('active');
+      btnModeDense.classList.remove('active');
+      if (selectExperts.value === '1') {
+        selectExperts.value = '12';
+        selectTopK.value = '2';
+      }
+      if (groupTopK) groupTopK.style.opacity = '1.0';
+      triggerRecalculation();
+    });
+  }
+
+  if (selectExperts) {
+    selectExperts.addEventListener('change', () => {
+      if (selectExperts.value === '1') {
+        if (btnModeDense) btnModeDense.classList.add('active');
+        if (btnModeMoe) btnModeMoe.classList.remove('active');
+        if (groupTopK) groupTopK.style.opacity = '0.5';
+      } else {
+        if (btnModeMoe) btnModeMoe.classList.add('active');
+        if (btnModeDense) btnModeDense.classList.remove('active');
+        if (groupTopK) groupTopK.style.opacity = '1.0';
+      }
+    });
+  }
+}
 
 function setupSliderListeners() {
   rangeRlvr.addEventListener('input', (e) => {

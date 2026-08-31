@@ -127,10 +127,12 @@ class TestModelBuilder(unittest.TestCase):
 
     def test_model_presets_catalog(self):
         """Tests that all model presets in the catalog compute valid specs."""
-        self.assertIn("edge_100m", MODEL_PRESETS)
-        self.assertIn("laptop_7b", MODEL_PRESETS)
-        self.assertIn("titan_144b_dense", MODEL_PRESETS)
-        self.assertIn("titan_144b_moe", MODEL_PRESETS)
+        self.assertIn("exp1_100m", MODEL_PRESETS)
+        self.assertIn("exp1_7b", MODEL_PRESETS)
+        self.assertIn("exp1_144b", MODEL_PRESETS)
+        self.assertIn("moe_laptop_7b", MODEL_PRESETS)
+        self.assertIn("moe_titan_144b", MODEL_PRESETS)
+        self.assertIn("moe_galaxy_1_7t", MODEL_PRESETS)
 
         for k, p in MODEL_PRESETS.items():
             specs = ModelArchitectureSpecs(
