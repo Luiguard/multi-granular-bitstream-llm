@@ -184,8 +184,9 @@ def train_30day_world_model():
             sd = ckpt["model_state_dict"] if (isinstance(ckpt, dict) and "model_state_dict" in ckpt) else ckpt
             model.load_state_dict(sd, assign=True)
             if isinstance(ckpt, dict):
-                step = ckpt.get("step", 0)
-                tokens_processed = ckpt.get("tokens_processed", step * 7168)
+                step = int(ckpt.get("step", 0))
+                raw_tokens = ckpt.get("tokens_processed")
+                tokens_processed = int(raw_tokens) if raw_tokens is not None else int(step * 7168)
                 loss_history = ckpt.get("loss_history", [])
                 latest_eval_metrics = ckpt.get("latest_eval_metrics")
                 if "training_graph_state" in ckpt:
@@ -356,7 +357,7 @@ def train_30day_world_model():
                     current_loss=loss_history[-1] if loss_history else 8.0,
                     shards_count=live_shards_count,
                     loss_history=loss_history,
-                    tokens_processed=int(tokens_processed) if tokens_processed is not None else 0,
+                    tokens_processed=tokens_processed,
                     current_lr=current_lr,
                     graph_state=graph_telemetry,
                     active_node_name=f"💤 Ruhemodus ({pause_reason})",
