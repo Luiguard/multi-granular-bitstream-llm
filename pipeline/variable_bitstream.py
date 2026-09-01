@@ -61,7 +61,7 @@ class VariableBitstreamEncoder:
     - Tier 3 (262144 .. 1048575): Prefix '111' + 20 bits (Total: 23 bits) - Complex Templates
     """
 
-    def __init__(self, vocab_size: int = 262144):
+    def __init__(self, vocab_size: int = 1048576):
         self.vocab_size = vocab_size
 
     def pack_tokens(self, token_ids: List[int]) -> bytearray:

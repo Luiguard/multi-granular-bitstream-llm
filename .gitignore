@@ -25,3 +25,4 @@ data/
 *.pdf
 dashboard_metrics.json
 data/test_scratch/
+result.json

@@ -9,6 +9,7 @@ import sys
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import Optional, cast, Dict, Any, List
 
 from pipeline.vocabulary import MultiGranularVocabulary
 from pipeline.moe_components import Top2GatingRouter
@@ -84,6 +85,72 @@ class MultiGranularMoE7BModel(nn.Module):
         self.head_proj = nn.Linear(d_model, rank, bias=False)
         self.head_out = nn.Linear(rank, vocab_size, bias=False)
 
+    def expand_vocab_weights(self, state_dict: dict) -> dict:
+        """Adapts an older state dict (e.g. 65k or 262k) to the current 20-bit (1,048,576) vocab size via zero-padding."""
+        adapted = state_dict.copy()
+        if "E_vocab.weight" in adapted:
+            old_w = adapted["E_vocab.weight"]
+            if old_w.shape[0] < self.vocab_size:
+                pad = torch.zeros((self.vocab_size - old_w.shape[0], old_w.shape[1]), dtype=old_w.dtype, device=old_w.device)
+                adapted["E_vocab.weight"] = torch.cat([old_w, pad], dim=0)
+        if "head_out.weight" in adapted:
+            old_h = adapted["head_out.weight"]
+            if old_h.shape[0] < self.vocab_size:
+                pad = torch.zeros((self.vocab_size - old_h.shape[0], old_h.shape[1]), dtype=old_h.dtype, device=old_h.device)
+                adapted["head_out.weight"] = torch.cat([old_h, pad], dim=0)
+        return adapted
+
+    def export_expert(self, expert_idx: int, file_path: str, metadata: Optional[dict] = None) -> dict:
+        """Exports a single MoE expert into a standalone portable file with vocabulary hash metadata."""
+        from pipeline.vocabulary import MultiGranularVocabulary
+        expert_weights = {}
+        for layer_idx, layer in enumerate(self.moe_layers):
+            moe_layer = cast(SparseMoELayer16, layer)
+            expert_mod = cast(nn.Module, moe_layer.experts[expert_idx])
+            for k, v in expert_mod.state_dict().items():
+                expert_weights[f"layer_{layer_idx}.{k}"] = v.cpu()
+
+        bundle = {
+            "expert_idx": expert_idx,
+            "vocab_size": self.vocab_size,
+            "vocab_sha256": MultiGranularVocabulary.CANONICAL_20BIT_JSON_SHA256,
+            "d_model": self.d_model,
+            "num_layers": len(self.moe_layers),
+            "metadata": metadata or {},
+            "weights": expert_weights,
+        }
+        torch.save(bundle, file_path)
+        return bundle
+
+    def import_expert(self, file_path: str, target_expert_idx: int, verify_vocab: bool = True):
+        """Imports a shared expert into target_expert_idx, verifying vocabulary compatibility."""
+        from pipeline.vocabulary import MultiGranularVocabulary
+        bundle = torch.load(file_path, map_location="cpu", weights_only=False)
+        if verify_vocab:
+            if bundle.get("vocab_size") != self.vocab_size:
+                raise ValueError(
+                    f"Inkompatibles Vokabular! Modell hat {self.vocab_size}, "
+                    f"aber der Experte wurde mit {bundle.get('vocab_size')} trainiert."
+                )
+            if bundle.get("vocab_sha256") != MultiGranularVocabulary.CANONICAL_20BIT_JSON_SHA256:
+                raise ValueError(
+                    f"Vokabular-Hash stimmt nicht überein! "
+                    f"Modell: {MultiGranularVocabulary.CANONICAL_20BIT_JSON_SHA256[:12]}..., "
+                    f"Experte: {bundle.get('vocab_sha256', 'None')[:12]}..."
+                )
+
+        weights = bundle["weights"]
+        for layer_idx, layer in enumerate(self.moe_layers):
+            layer_sd = {}
+            prefix = f"layer_{layer_idx}."
+            for k, v in weights.items():
+                if k.startswith(prefix):
+                    layer_sd[k[len(prefix):]] = v
+            if layer_sd:
+                moe_layer = cast(SparseMoELayer16, layer)
+                expert_mod = cast(nn.Module, moe_layer.experts[target_expert_idx])
+                expert_mod.load_state_dict(layer_sd)
+
     def forward_hidden(self, x: torch.Tensor):
         B, T = x.shape
         compact = self.E_vocab(x)
@@ -141,7 +208,7 @@ class MultiGranularMoE7BModel(nn.Module):
             total_ce_loss = total_ce_loss + chunk_ce
             
         ce_loss = total_ce_loss / max(1, total_tokens)
-        total_loss = ce_loss + 0.01 * total_aux_loss.float()
+        total_loss = ce_loss + 0.01 * (total_aux_loss.float() if isinstance(total_aux_loss, torch.Tensor) else float(total_aux_loss))
         return total_loss, ce_loss, total_aux_loss
 
 
@@ -150,7 +217,8 @@ def calculate_7b_parameters():
         model = MultiGranularMoE7BModel(vocab_size=65536)
 
     total_p = sum(p.numel() for p in model.parameters())
-    single_expert_p = sum(p.numel() for p in model.moe_layers[0].experts[0].parameters())
+    moe_first = cast(SparseMoELayer16, model.moe_layers[0])
+    single_expert_p = sum(p.numel() for p in cast(nn.Module, moe_first.experts[0]).parameters())
     inactive_expert_p = 24 * 10 * single_expert_p
     active_p = total_p - inactive_expert_p
 

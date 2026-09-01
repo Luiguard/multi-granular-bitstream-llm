@@ -32,15 +32,16 @@ Das Modell soll:
 
 ### Bitbreite:
 
-Für ein Vokabular der Größe $|V|$ gilt:
-$$\text{bitwidth} = \lceil \log_2 |V| \rceil$$
-Alle Token-IDs werden mit dieser Bitbreite dicht gepackt.
+Für das kanonische Universal-Vokabular ($|V| = 1.048.576$ Tokens über 175+ ISO-Sprachen, MINT & Coding) gilt:
+$$\text{bitwidth} = \lceil \log_2 |V| \rceil = 20\text{ Bit}$$
+Alle Token-IDs werden entweder mit fester 20-Bit-Breite dicht gepackt (4 Tokens = 80 Bits = 10 Bytes) oder über den entropie-effizienten `VariableBitstreamEncoder` (Prefix 0, 10, 110, 111) komprimiert.
 
-### Constraints:
+### Constraints & Experten-Portabilität:
 
-* Jede Token-ID ist eindeutig.  
+* Jede Token-ID ist eindeutig und durch einen kanonischen SHA-256 Hash (`data/vocab_1m_20bit.json`) verankert.
 * Alle Tokens sind verlustfrei dekodierbar.  
-* Zero-OOV durch Tier-0-Byte-Fallback.
+* Zero-OOV durch Tier-0-Byte-Fallback (`0x00`–`0xFF`).
+* Geteilte MoE-Experten (z. B. SwiGLU-FFN-Module) führen diesen Hash im Bundle mit und prüfen vor dem Laden die 100%ige Index-Identität.
 
 ---
 
@@ -75,14 +76,14 @@ Finde die global optimalen Token-Sequenzen für einen gegebenen Text, basierend 
 ## 4. Bitstream-Format & I/O
 
 ### Bit-Packing:
-* Token-IDs werden mit fester Bitbreite (z. B. 9–18 Bit) dicht gepackt.
+* Token-IDs werden mit fester Bitbreite (z. B. 16–20 Bit) dicht gepackt.
 * Keine Padding-Bits zwischen Tokens.
 
 ### Header (MGBS – Multi-Granular Bitstream Spec):
 * Magic Bytes: `b"MGBS"` (4 Bytes)
 * Version: uint16
-* Bitbreite: uint8
-* Vokabulargröße $|V|$: uint32
+* Bitbreite: uint8 (20 bei 1M Vokabular)
+* Vokabulargröße $|V|$: uint32 (1.048.576)
 * Anzahl Tokens: uint64
 * Anzahl Raw-Bytes: uint64
 
