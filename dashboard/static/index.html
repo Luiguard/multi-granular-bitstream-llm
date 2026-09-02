@@ -55,19 +55,23 @@
         <div class="metrics-mini-grid">
           <div class="metric-box">
             <span class="metric-title">Restzeit (ETA)</span>
-            <span class="metric-value highlight" id="eta-value">00:00 min (FERTIG)</span>
+            <span class="metric-value highlight" id="eta-value">--:-- min</span>
           </div>
           <div class="metric-box">
             <span class="metric-title">Durchsatz</span>
-            <span class="metric-value" id="throughput-value">25.380 Tokens/s</span>
+            <span class="metric-value" id="throughput-value">-- Tokens/s</span>
           </div>
           <div class="metric-box">
             <span class="metric-title">Aktueller Loss</span>
-            <span class="metric-value accent" id="current-loss-value">3.3185</span>
+            <span class="metric-value accent" id="current-loss-value">--</span>
           </div>
           <div class="metric-box">
-            <span class="metric-title">Trainierte Tokens (Shards)</span>
-            <span class="metric-value" id="shards-count-value">11.8M Tokens (1.397 Shards)</span>
+            <span class="metric-title">Ø Durchschnitts-Loss</span>
+            <span class="metric-value" style="color: #34d399;" id="average-loss-value">--</span>
+          </div>
+          <div class="metric-box">
+            <span class="metric-title">Trainierte Tokens</span>
+            <span class="metric-value" id="shards-count-value">-- Tokens</span>
           </div>
         </div>
       </section>
@@ -118,7 +122,7 @@
       <section class="card glass-panel chart-card">
         <div class="card-header">
           <h2>📈 Konvergenz- & Loss-Verlauf</h2>
-          <span class="chart-legend"><span class="dot"></span> Byte-gewichteter Cross-Entropy</span>
+          <span class="chart-legend"><span class="dot"></span> Byte-gewichteter Cross-Entropy · <strong id="chart-loss-stats" style="color: var(--text-primary);">Aktuell: -- | Ø: --</strong></span>
         </div>
         <div class="chart-wrapper">
           <canvas id="lossChart"></canvas>

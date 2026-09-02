@@ -116,7 +116,7 @@ def get_real_hardware_telemetry() -> Dict[str, Any]:
         pass
 
     status_file = "/home/benjamin/Bilder/data/training_status.json"
-    training_data = {
+    training_data: Dict[str, Any] = {
         "epoch": 0,
         "max_epochs": 30,
         "step": 0,
@@ -144,8 +144,11 @@ def get_real_hardware_telemetry() -> Dict[str, Any]:
 
     training_data["total_corpus_shards"] = total_corpus_shards
     # Berechne dynamisch verarbeitete Shard-Äquivalente (500k Tokens / Shard)
-    tot_tokens = training_data.get("total_world_tokens", 0)
-    training_data["shards_processed_count"] = max(1, int(tot_tokens / 500_000)) if tot_tokens > 0 else training_data.get("step", 0)
+    tot_val = training_data.get("total_world_tokens", 0)
+    tot_tokens = int(tot_val) if isinstance(tot_val, (int, float)) else 0
+    step_val = training_data.get("step", 0)
+    default_step = int(step_val) if isinstance(step_val, (int, float)) else 0
+    training_data["shards_processed_count"] = max(1, int(tot_tokens / 500_000)) if tot_tokens > 0 else default_step
 
     # Eval-Metriken aus isolierter Held-Out Validierung
     eval_m = training_data.get("eval_metrics")
@@ -160,8 +163,14 @@ def get_real_hardware_telemetry() -> Dict[str, Any]:
 
     mmlu_score = round(max(25.0, min(88.0, 100.0 * (1.0 - max(0.0, float(curr_loss) - 2.5) / 12.0))), 1)
 
+    raw_history = training_data.get("loss_history", [])
+    valid_history = [float(x) for x in raw_history if isinstance(x, (int, float))]
+    avg_loss = round(sum(valid_history) / len(valid_history), 4) if valid_history else round(float(curr_loss), 4)
+
     return {
         **training_data,
+        "current_loss": round(float(curr_loss), 4),
+        "average_loss": avg_loss,
         "gpu_vram_used_gb": round(gpu_vram_used, 2),
         "gpu_vram_total_gb": round(gpu_vram_total, 1),
         "gpu_temp_c": gpu_temp,

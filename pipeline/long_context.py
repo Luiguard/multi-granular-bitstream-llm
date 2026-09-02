@@ -20,6 +20,10 @@ class YaRNRotaryEmbedding(nn.Module):
     low-frequency dimensions (global positioning) without retraining from scratch.
     """
 
+    inv_freq: torch.Tensor
+    cos_cached: torch.Tensor
+    sin_cached: torch.Tensor
+
     def __init__(
         self,
         dim: int,
@@ -57,11 +61,11 @@ class YaRNRotaryEmbedding(nn.Module):
 
         # Precompute table
         t = torch.arange(max_seq_len, dtype=torch.float32)
-        freqs = torch.outer(t, self.inv_freq)
+        freqs = torch.outer(t, inv_freq)
         emb = torch.cat((freqs, freqs), dim=-1)
 
         # Attention temperature scaling factor (sqrt(1 + 0.1 * ln(s)))
-        self.mscale = float(0.1 * math.log(scale_factor) + 1.0)
+        self.mscale = 0.1 * math.log(scale_factor) + 1.0
         self.register_buffer("cos_cached", (emb.cos() * self.mscale), persistent=False)
         self.register_buffer("sin_cached", (emb.sin() * self.mscale), persistent=False)
 

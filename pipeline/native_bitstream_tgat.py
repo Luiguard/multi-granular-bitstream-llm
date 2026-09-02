@@ -131,8 +131,8 @@ class NativeBitstreamTGAT:
         edge_idx = len(self.edge_src)
         self.edge_src.append(src_idx)
         self.edge_dst.append(dst_idx)
-        self.edge_timestamps.append(float(timestamp))
-        self.edge_weights.append(float(weight))
+        self.edge_timestamps.append(timestamp)
+        self.edge_weights.append(weight)
 
         self.edge_tokens.extend(relation_tokens)
         self.edge_token_offsets.append(len(self.edge_tokens))
@@ -168,6 +168,17 @@ class NativeBitstreamTGAT:
             current_time = time.time()
 
         self._prepare_numpy()
+        if (self._np_node_tokens is None or self._np_node_offsets is None or
+            self._np_edge_src is None or self._np_edge_dst is None or
+            self._np_edge_timestamps is None or self._np_edge_weights is None):
+            return []
+
+        np_node_tokens = self._np_node_tokens
+        np_node_offsets = self._np_node_offsets
+        np_edge_src = self._np_edge_src
+        np_edge_dst = self._np_edge_dst
+        np_edge_timestamps = self._np_edge_timestamps
+        np_edge_weights = self._np_edge_weights
 
         # Step 1: Candidate node retrieval from query tokens
         matched_node_counts: Dict[int, int] = {}
@@ -185,16 +196,16 @@ class NativeBitstreamTGAT:
 
         # Step 2: Extract candidate edges
         candidate_set = set(candidate_nodes)
-        edge_mask = np.isin(self._np_edge_src, list(candidate_set)) | np.isin(self._np_edge_dst, list(candidate_set))
+        edge_mask = np.isin(np_edge_src, list(candidate_set)) | np.isin(np_edge_dst, list(candidate_set))
         matching_edge_indices = np.where(edge_mask)[0]
 
         if len(matching_edge_indices) == 0:
             # Return matched node labels directly
             results = []
             for n_idx in candidate_nodes[:top_k]:
-                start = self._np_node_offsets[n_idx]
-                end = self._np_node_offsets[n_idx + 1]
-                toks = self._np_node_tokens[start:end].tolist()
+                start = np_node_offsets[n_idx]
+                end = np_node_offsets[n_idx + 1]
+                toks = np_node_tokens[start:end].tolist()
                 results.append({
                     "type": "node",
                     "label": self.node_labels[n_idx],
@@ -205,8 +216,8 @@ class NativeBitstreamTGAT:
             return results
 
         # Step 3: Compute Bochner Temporal Attention Scores
-        edge_times = self._np_edge_timestamps[matching_edge_indices]
-        edge_w = self._np_edge_weights[matching_edge_indices]
+        edge_times = np_edge_timestamps[matching_edge_indices]
+        edge_w = np_edge_weights[matching_edge_indices]
         delta_times = np.maximum(0.0, current_time - edge_times)
 
         # Bochner continuous Fourier embedding
@@ -217,8 +228,8 @@ class NativeBitstreamTGAT:
 
         # Temporal Graph Attention Score: Token overlap + Hebbian weight + Time Decay + Bochner norm
         token_match_boost = np.array([
-            matched_node_counts.get(int(self._np_edge_src[e_idx]), 0) +
-            matched_node_counts.get(int(self._np_edge_dst[e_idx]), 0)
+            matched_node_counts.get(int(np_edge_src[e_idx]), 0) +
+            matched_node_counts.get(int(np_edge_dst[e_idx]), 0)
             for e_idx in matching_edge_indices
         ], dtype=np.float32)
 
@@ -233,8 +244,8 @@ class NativeBitstreamTGAT:
         results = []
         for rank_idx in top_edge_order:
             e_idx = matching_edge_indices[rank_idx]
-            src_i = int(self._np_edge_src[e_idx])
-            dst_i = int(self._np_edge_dst[e_idx])
+            src_i = int(np_edge_src[e_idx])
+            dst_i = int(np_edge_dst[e_idx])
             score_val = float(attention_scores[rank_idx])
             dt_val = float(delta_times[rank_idx])
 
@@ -258,6 +269,17 @@ class NativeBitstreamTGAT:
     def save_binary(self, filepath: str):
         """Saves entire TGAT graph as compact zero-overhead binary file (.tgat)."""
         self._prepare_numpy()
+        np_node_tokens = self._np_node_tokens
+        np_node_offsets = self._np_node_offsets
+        np_edge_src = self._np_edge_src
+        np_edge_dst = self._np_edge_dst
+        np_edge_timestamps = self._np_edge_timestamps
+        np_edge_weights = self._np_edge_weights
+        if (np_node_tokens is None or np_node_offsets is None or
+            np_edge_src is None or np_edge_dst is None or
+            np_edge_timestamps is None or np_edge_weights is None):
+            raise RuntimeError("TGAT NumPy arrays are not prepared.")
+
         os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
 
         with open(filepath, "wb") as f:
@@ -275,12 +297,12 @@ class NativeBitstreamTGAT:
                 f.write(struct.pack("<Q", arr.size))
                 f.write(arr.tobytes())
 
-            write_array(self._np_node_tokens)
-            write_array(self._np_node_offsets)
-            write_array(self._np_edge_src)
-            write_array(self._np_edge_dst)
-            write_array(self._np_edge_timestamps)
-            write_array(self._np_edge_weights)
+            write_array(np_node_tokens)
+            write_array(np_node_offsets)
+            write_array(np_edge_src)
+            write_array(np_edge_dst)
+            write_array(np_edge_timestamps)
+            write_array(np_edge_weights)
             write_array(np.array(self.edge_token_offsets, dtype=np.uint32))
             write_array(np.array(self.edge_tokens, dtype=np.uint16))
 

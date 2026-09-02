@@ -70,6 +70,8 @@ class FactorizedEmbedding:
 
         grad_output: shape (batch_size, seq_len, embedding_dim)
         """
+        if self._last_compact is None or self._last_input is None:
+            raise RuntimeError("Cannot call backward before calling forward.")
         B, T, r = self._last_compact.shape
         d = self.embedding_dim
 
@@ -179,6 +181,8 @@ if HAS_TORCH:
 
     class ByteWeightedCrossEntropyLossTorch(nn.Module):
         """PyTorch Module for Byte-Weighted Cross-Entropy Loss."""
+
+        weights: torch.Tensor
 
         def __init__(self, id_to_byte_len: Dict[int, int], vocab_size: int):
             super().__init__()

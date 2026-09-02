@@ -49,7 +49,8 @@ class ShardedBitstreamDataset(Dataset):
     def __len__(self) -> int:
         return self.total_samples
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        idx = index
         shard_idx = 0
         for i in range(len(self.cumulative_lengths) - 1):
             if self.cumulative_lengths[i] <= idx < self.cumulative_lengths[i + 1]:
@@ -177,7 +178,7 @@ def main():
         pin_memory=(device.type == "cuda"),
     )
 
-    model = MultiGranularCausalTransformer(
+    raw_model = MultiGranularCausalTransformer(
         vocab_size=vocab.size,
         rank=args.rank_dim,
         d_model=args.d_model,
@@ -188,9 +189,10 @@ def main():
     ).to(device)
 
     if is_distributed:
-        model = DDP(model, device_ids=[local_rank])
+        model: nn.Module = DDP(raw_model, device_ids=[local_rank])
+    else:
+        model = raw_model
 
-    raw_model = model.module if is_distributed else model
     total_params = sum(p.numel() for p in raw_model.parameters())
 
     if global_rank == 0:
@@ -233,7 +235,9 @@ def main():
                 loss = torch.sum(loss_unreduced * weights) / torch.sum(weights)
                 loss = loss / args.grad_accum
 
-            scaler.scale(loss).backward()
+            scaled_loss = scaler.scale(loss)
+            assert isinstance(scaled_loss, torch.Tensor)
+            scaled_loss.backward()
 
             if (batch_idx + 1) % args.grad_accum == 0 or (batch_idx + 1) == len(dataloader):
                 scaler.unscale_(optimizer)

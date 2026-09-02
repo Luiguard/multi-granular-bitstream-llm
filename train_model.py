@@ -5,6 +5,7 @@ import glob
 import json
 import math
 import os
+import subprocess
 import sys
 import time
 from typing import List, Tuple
@@ -45,7 +46,8 @@ class ShardedBitstreamDataset(torch.utils.data.Dataset):
     def __len__(self) -> int:
         return self.total_samples
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        idx = index
         shard_idx = 0
         for i in range(len(self.cumulative_lengths) - 1):
             if self.cumulative_lengths[i] <= idx < self.cumulative_lengths[i + 1]:
@@ -142,9 +144,9 @@ def update_live_status(
         "progress_percent": round(progress_pct, 1),
         "eta_str": eta_str,
         "tokens_per_sec": int(tokens_per_sec),
-        "current_loss": round(float(current_loss), 4),
+        "current_loss": round(current_loss, 4),
         "shards_processed": shards_count,
-        "loss_history": [round(float(v), 3) for v in loss_history[-30:]],
+        "loss_history": [round(v, 3) for v in loss_history[-30:]],
     }
 
     try:
@@ -218,6 +220,8 @@ def train_fast_track_preview():
     step = 0
     start_time = time.time()
     loss_history: List[float] = []
+    loss_val: float = 0.0
+    tps: float = 0.0
 
     print("\n🚀 Starte 15-Minuten Fast-Track Training...", flush=True)
     data_iter = iter(dataloader)
@@ -281,7 +285,11 @@ def train_fast_track_preview():
 
     # Desktop Notification
     try:
-        os.system("notify-send '🚀 Fast-Track LLM' '🎉 15-Minuten Vorgeschmack-Modell erfolgreich fertiggestellt!' -u critical 2>/dev/null")
+        subprocess.run(
+            ["notify-send", "🚀 Fast-Track LLM", "🎉 15-Minuten Vorgeschmack-Modell erfolgreich fertiggestellt!", "-u", "critical"],
+            check=False,
+            stderr=subprocess.DEVNULL
+        )
     except Exception:
         pass
 
@@ -293,9 +301,9 @@ def train_fast_track_preview():
         "progress_percent": 100.0,
         "eta_str": "00:00 min (FERTIG)",
         "tokens_per_sec": int(tps),
-        "current_loss": round(float(loss_val), 4),
+        "current_loss": round(loss_val, 4),
         "shards_processed": len(shard_files),
-        "loss_history": [round(float(v), 3) for v in loss_history[-30:]],
+        "loss_history": [round(v, 3) for v in loss_history[-30:]],
         "status": "COMPLETED",
     }
     try:

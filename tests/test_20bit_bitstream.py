@@ -194,6 +194,53 @@ class Test20BitBitstreamSuite(unittest.TestCase):
 
         print("  ✅ Test 6: MoE Experten-Export & Import mit kryptografischer Vokabular-Prüfung erfolgreich")
 
+    def test_07_shared_plus_top1_moe_architecture(self):
+        """Verifies Shared Expert + Top-1 Specialist MoE Layer and gradient isolation."""
+        from pipeline.moe_components import SharedPlusTop1MoELayer
+
+        d_model = 128
+        shared_dim = 128
+        specialist_dim = 256
+        num_experts = 4
+        B, T = 1, 8
+
+        layer = SharedPlusTop1MoELayer(
+            d_model=d_model,
+            shared_dim=shared_dim,
+            specialist_dim=specialist_dim,
+            num_experts=num_experts,
+            routing_k=1,
+        )
+
+        x = torch.randn(B, T, d_model, requires_grad=True)
+
+        # Force routing all tokens to specialist 1 via domain_bias
+        domain_bias = torch.tensor([-100.0, 100.0, -100.0, -100.0])
+        out, aux_loss = layer(x, domain_bias=domain_bias)
+
+        self.assertEqual(out.shape, torch.Size([B, T, d_model]))
+
+        # Backward pass
+        loss = out.sum() + aux_loss
+        loss.backward()
+
+        # Specialist 1 must have non-zero gradients
+        exp1 = cast(SwiGLUFeedForward, layer.experts[1])
+        self.assertIsNotNone(exp1.w1.weight.grad)
+        self.assertGreater(exp1.w1.weight.grad.norm().item(), 0.0)
+
+        # Specialist 0, 2, 3 must have ZERO (None) gradients because they were not routed!
+        for unrouted_idx in [0, 2, 3]:
+            unrouted_exp = cast(SwiGLUFeedForward, layer.experts[unrouted_idx])
+            grad = unrouted_exp.w1.weight.grad
+            self.assertTrue(grad is None or grad.norm().item() == 0.0)
+
+        # Shared expert must have non-zero gradients
+        self.assertIsNotNone(layer.shared_expert.w1.weight.grad)
+        self.assertGreater(layer.shared_expert.w1.weight.grad.norm().item(), 0.0)
+
+        print("  ✅ Test 7: Shared + Top-1 MoE Architektur & 100% Gradienten-Isolation verifiziert")
+
 
 if __name__ == "__main__":
     print("=" * 80)

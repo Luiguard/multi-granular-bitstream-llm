@@ -54,7 +54,8 @@ class ShardedBitstreamDataset(Dataset):
     def __len__(self) -> int:
         return self.total_samples
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        idx = index
         shard_idx = 0
         for i in range(len(self.cumulative_lengths) - 1):
             if self.cumulative_lengths[i] <= idx < self.cumulative_lengths[i + 1]:
@@ -99,9 +100,9 @@ def update_dashboard_status(
         "progress_percent": round(progress_pct, 1),
         "eta_str": eta_str,
         "tokens_per_sec": int(tokens_per_sec),
-        "current_loss": round(float(current_loss), 4),
+        "current_loss": round(current_loss, 4),
         "shards_processed": shards_count,
-        "loss_history": [round(float(v), 3) for v in loss_history[-30:]],
+        "loss_history": [round(v, 3) for v in loss_history[-30:]],
     }
 
     try:

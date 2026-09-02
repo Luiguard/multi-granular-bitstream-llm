@@ -19,6 +19,10 @@ import torch.utils.checkpoint as checkpoint
 class RotaryEmbedding(nn.Module):
     """Rotary Position Embedding (RoPE) as used in Nemotron-4 and Llama-3 (8192 context)."""
 
+    inv_freq: torch.Tensor
+    cos_cached: torch.Tensor
+    sin_cached: torch.Tensor
+
     def __init__(self, dim: int, max_seq_len: int = 8192, theta: float = 500000.0):
         super().__init__()
         self.dim = dim

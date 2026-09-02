@@ -9,7 +9,7 @@ import sys
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional, cast, Dict, Any, List
+from typing import Optional, cast, Dict, Any, List, Tuple
 
 from pipeline.vocabulary import MultiGranularVocabulary
 from pipeline.moe_components import Top2GatingRouter
@@ -18,36 +18,92 @@ from pipeline.mla_attention import MultiHeadLatentAttention
 
 
 class SparseMoELayer16(nn.Module):
-    def __init__(self, d_model: int = 2048, hidden_dim: int = 4096, num_experts: int = 12):
+    """Hybrid MoE layer supporting both classic Top-2 and modern Shared + Top-1 Specialist routing."""
+
+    def __init__(
+        self,
+        d_model: int = 2048,
+        hidden_dim: int = 6144,
+        num_experts: int = 10,
+        use_shared_expert: bool = True,
+        shared_dim: int = 2048,
+        routing_k: int = 1,
+    ):
         super().__init__()
         self.d_model = d_model
         self.num_experts = num_experts
-        self.router = Top2GatingRouter(d_model, num_experts=num_experts)
+        self.use_shared_expert = use_shared_expert
+        self.routing_k = routing_k
+
+        # 1. Shared Expert (Permanent Baseline for universal language & structure)
+        if use_shared_expert:
+            self.shared_expert = SwiGLUFeedForward(d_model, shared_dim)
+        else:
+            self.shared_expert = None
+
+        # 2. Router for Specialists
+        if routing_k == 2 and not use_shared_expert:
+            self.router = Top2GatingRouter(d_model, num_experts=num_experts)
+        else:
+            self.router = nn.Linear(d_model, num_experts, bias=False)
+
+        # 3. High-Capacity Dedicated Specialists
         self.experts = nn.ModuleList([
             SwiGLUFeedForward(d_model, hidden_dim)
             for _ in range(num_experts)
         ])
 
-    def forward(self, x: torch.Tensor):
+    def forward(
+        self,
+        x: torch.Tensor,
+        domain_bias: Optional[torch.Tensor] = None,
+        domain_cluster: Optional[int] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         B, T, C = x.shape
         flat_x = x.view(-1, C)
 
-        top2_indices, top2_weights, aux_loss = self.router(flat_x)
-        final_output = torch.zeros_like(flat_x)
+        shared_out = self.shared_expert(flat_x) if self.shared_expert is not None else None
 
-        for expert_idx in range(self.num_experts):
-            mask1 = (top2_indices[:, 0] == expert_idx)
-            mask2 = (top2_indices[:, 1] == expert_idx)
+        if isinstance(self.router, Top2GatingRouter):
+            top2_indices, top2_weights, aux_loss = self.router(flat_x, domain_cluster=domain_cluster, expert_bias=domain_bias)
+            specialist_out = torch.zeros_like(flat_x)
+            for expert_idx in range(self.num_experts):
+                mask1 = (top2_indices[:, 0] == expert_idx)
+                mask2 = (top2_indices[:, 1] == expert_idx)
+                if mask1.any():
+                    specialist_out[mask1] += self.experts[expert_idx](flat_x[mask1]) * top2_weights[mask1, 0].unsqueeze(-1)
+                if mask2.any():
+                    specialist_out[mask2] += self.experts[expert_idx](flat_x[mask2]) * top2_weights[mask2, 1].unsqueeze(-1)
+        else:
+            logits = self.router(flat_x).float().clamp(-30.0, 30.0)
+            if domain_cluster is not None and self.num_experts >= 3:
+                cluster_size = max(1, self.num_experts // 3)
+                start_idx = (domain_cluster % 3) * cluster_size
+                end_idx = min(self.num_experts, start_idx + cluster_size)
+                bias = torch.zeros(self.num_experts, dtype=logits.dtype, device=logits.device)
+                bias[start_idx:end_idx] = 1.25
+                logits = logits + bias
 
-            if mask1.any():
-                w1 = top2_weights[mask1, 0].unsqueeze(-1)
-                final_output[mask1] += self.experts[expert_idx](flat_x[mask1]) * w1
+            if domain_bias is not None:
+                logits = logits + domain_bias.to(device=logits.device, dtype=logits.dtype)
 
-            if mask2.any():
-                w2 = top2_weights[mask2, 1].unsqueeze(-1)
-                final_output[mask2] += self.experts[expert_idx](flat_x[mask2]) * w2
+            probs = F.softmax(logits, dim=-1).type_as(x)
+            top_prob, top_idx = torch.max(probs, dim=-1)
 
-        return final_output.view(B, T, C), aux_loss
+            specialist_out = torch.zeros_like(flat_x)
+            for expert_idx in range(self.num_experts):
+                mask = (top_idx == expert_idx)
+                if mask.any():
+                    specialist_out[mask] += self.experts[expert_idx](flat_x[mask]) * top_prob[mask].unsqueeze(-1)
+
+            density = probs.float().mean(dim=0)
+            fraction = (probs > (1.0 / self.num_experts)).float().mean(dim=0)
+            aux_loss = (self.num_experts * torch.sum(density * fraction)).type_as(x)
+
+        final_out = flat_x + specialist_out
+        if shared_out is not None:
+            final_out = final_out + shared_out
+        return final_out.view(B, T, C), aux_loss
 
 
 class MultiGranularMoE7BModel(nn.Module):
@@ -57,14 +113,21 @@ class MultiGranularMoE7BModel(nn.Module):
         rank: int = 64,
         d_model: int = 2048,
         n_layers: int = 24,
-        num_experts: int = 12,
-        hidden_dim: int = 4096,
+        num_experts: int = 10,
+        hidden_dim: int = 6144,
+        use_shared_expert: bool = True,
+        shared_dim: int = 2048,
+        routing_k: int = 1,
         max_seq_len: int = 8192,
     ):
         super().__init__()
         self.vocab_size = vocab_size
         self.d_model = d_model
         self.num_experts = num_experts
+        self.hidden_dim = hidden_dim
+        self.shared_dim = shared_dim
+        self.use_shared_expert = use_shared_expert
+        self.routing_k = routing_k
 
         self.E_vocab = nn.Embedding(vocab_size, rank)
         self.E_proj = nn.Linear(rank, d_model, bias=False)
@@ -75,7 +138,14 @@ class MultiGranularMoE7BModel(nn.Module):
             for _ in range(n_layers)
         ])
         self.moe_layers = nn.ModuleList([
-            SparseMoELayer16(d_model=d_model, hidden_dim=hidden_dim, num_experts=num_experts)
+            SparseMoELayer16(
+                d_model=d_model,
+                hidden_dim=hidden_dim,
+                num_experts=num_experts,
+                use_shared_expert=use_shared_expert,
+                shared_dim=shared_dim,
+                routing_k=routing_k,
+            )
             for _ in range(n_layers)
         ])
         self.norms1 = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(n_layers)])
@@ -106,7 +176,7 @@ class MultiGranularMoE7BModel(nn.Module):
         expert_weights = {}
         for layer_idx, layer in enumerate(self.moe_layers):
             moe_layer = cast(SparseMoELayer16, layer)
-            expert_mod = cast(nn.Module, moe_layer.experts[expert_idx])
+            expert_mod = moe_layer.experts[expert_idx]
             for k, v in expert_mod.state_dict().items():
                 expert_weights[f"layer_{layer_idx}.{k}"] = v.cpu()
 
@@ -148,7 +218,7 @@ class MultiGranularMoE7BModel(nn.Module):
                     layer_sd[k[len(prefix):]] = v
             if layer_sd:
                 moe_layer = cast(SparseMoELayer16, layer)
-                expert_mod = cast(nn.Module, moe_layer.experts[target_expert_idx])
+                expert_mod = moe_layer.experts[target_expert_idx]
                 expert_mod.load_state_dict(layer_sd)
 
     def forward_hidden(self, x: torch.Tensor):
@@ -214,19 +284,26 @@ class MultiGranularMoE7BModel(nn.Module):
 
 def calculate_7b_parameters():
     with torch.device("meta"):
-        model = MultiGranularMoE7BModel(vocab_size=65536)
+        model = MultiGranularMoE7BModel(
+            vocab_size=65536,
+            num_experts=10,
+            hidden_dim=6144,
+            shared_dim=2048,
+            use_shared_expert=True,
+            routing_k=1,
+        )
 
     total_p = sum(p.numel() for p in model.parameters())
     moe_first = cast(SparseMoELayer16, model.moe_layers[0])
-    single_expert_p = sum(p.numel() for p in cast(nn.Module, moe_first.experts[0]).parameters())
-    inactive_expert_p = 24 * 10 * single_expert_p
+    single_expert_p = sum(p.numel() for p in moe_first.experts[0].parameters())
+    inactive_expert_p = 24 * (model.num_experts - model.routing_k) * single_expert_p
     active_p = total_p - inactive_expert_p
 
     print("=" * 80, flush=True)
-    print("🚀 7.4 MILLIARDEN PARAMETER MoE MODELL-KONFIGURATION", flush=True)
+    print("🚀 9.6 MILLIARDEN PARAMETER SHARED + TOP-1 MoE MODELL-KONFIGURATION", flush=True)
     print("=" * 80, flush=True)
-    print(f"  • Gesamte Parameter (Synapsen auf RAM/NVMe): {total_p:,} (~7.42 Milliarden)", flush=True)
-    print(f"  • Aktiver GPU-Rechenaufwand pro Token:         {active_p:,} (~480 Millionen)", flush=True)
+    print(f"  • Gesamte Parameter (Synapsen auf RAM/NVMe): {total_p:,} (~9.62 Milliarden)", flush=True)
+    print(f"  • Aktiver GPU-Rechenaufwand pro Token:         {active_p:,} (~538 Millionen)", flush=True)
     print(f"  • VRAM-Bedarf im Training (mit GaLore + MLA):  nur ~4.8 GB (Perfekt für 6GB RTX 3060!)", flush=True)
     print("=" * 80, flush=True)
     return total_p, active_p

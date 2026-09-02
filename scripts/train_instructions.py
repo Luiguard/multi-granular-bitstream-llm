@@ -5,6 +5,7 @@ import argparse
 import glob
 import json
 import os
+import subprocess
 import sys
 import time
 from typing import List
@@ -134,7 +135,11 @@ def train_instruction_tuning():
     print(f"\n🎉 INSTRUCT-MODELL ERFOLGREICH GESPEICHERT: {args.output_model}", flush=True)
 
     try:
-        os.system("notify-send '🚀 SFT Instruct-Modell' '🎉 Schritt 2 (Dialog- & Reasoning-Tuning) erfolgreich abgeschlossen!' -u critical 2>/dev/null")
+        subprocess.run(
+            ["notify-send", "🚀 SFT Instruct-Modell", "🎉 Schritt 2 (Dialog- & Reasoning-Tuning) erfolgreich abgeschlossen!", "-u", "critical"],
+            check=False,
+            stderr=subprocess.DEVNULL
+        )
     except Exception:
         pass
 

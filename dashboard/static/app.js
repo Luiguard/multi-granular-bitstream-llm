@@ -121,6 +121,18 @@ async function fetchMetrics() {
     const corpusShards = data.total_corpus_shards || data.shards_processed || 1397;
     updateElement('shards-count-value', `${tokenStr} (${corpusShards} Shards)`);
 
+    // Live Loss Metrics (Aktuell & Ø Durchschnitt)
+    const currentLoss = data.current_loss !== undefined ? Number(data.current_loss).toFixed(4) : '--';
+    updateElement('current-loss-value', currentLoss);
+
+    let avgLossVal = data.average_loss;
+    if (avgLossVal === undefined && data.loss_history && data.loss_history.length > 0) {
+      avgLossVal = data.loss_history.reduce((a, b) => a + b, 0) / data.loss_history.length;
+    }
+    const avgLoss = avgLossVal !== undefined ? Number(avgLossVal).toFixed(4) : '--';
+    updateElement('average-loss-value', avgLoss);
+    updateElement('chart-loss-stats', `Aktuell: ${currentLoss} | Ø: ${avgLoss}`);
+
     // 2. Hardware Telemetry
     if (data.gpu_vram_used_gb !== undefined) {
       updateElement('vram-text', `${data.gpu_vram_used_gb.toFixed(1)} / ${data.gpu_vram_total_gb.toFixed(1)} GB`);

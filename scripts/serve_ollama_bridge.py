@@ -10,15 +10,16 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import torch
 import torch.nn.functional as F
 
+from typing import Optional
 from pipeline.vocabulary import MultiGranularVocabulary
 from pipeline.tokenizer import ViterbiTokenizer
 from scripts.train_distributed import MultiGranularCausalTransformer
 
 
-GLOBAL_MODEL = None
-GLOBAL_TOKENIZER = None
-GLOBAL_DEVICE = None
-GLOBAL_VOCAB = None
+GLOBAL_MODEL: Optional[MultiGranularCausalTransformer] = None
+GLOBAL_TOKENIZER: Optional[ViterbiTokenizer] = None
+GLOBAL_DEVICE: Optional[torch.device] = None
+GLOBAL_VOCAB: Optional[MultiGranularVocabulary] = None
 
 
 class OllamaBridgeHandler(BaseHTTPRequestHandler):
@@ -68,8 +69,17 @@ class OllamaBridgeHandler(BaseHTTPRequestHandler):
         else:
             prompt = "Hallo"
 
+        if GLOBAL_TOKENIZER is None or GLOBAL_MODEL is None or GLOBAL_DEVICE is None:
+            self._set_headers(503)
+            self.wfile.write(json.dumps({"error": "Model not initialized"}).encode("utf-8"))
+            return
+
+        tokenizer = GLOBAL_TOKENIZER
+        model = GLOBAL_MODEL
+        device = GLOBAL_DEVICE
+
         # Generate response using Bitstream model
-        tokens = GLOBAL_TOKENIZER.encode(prompt)
+        tokens = tokenizer.encode(prompt)
         input_ids = list(tokens)
 
         max_tokens = int(data.get("max_tokens", 32))
@@ -77,14 +87,14 @@ class OllamaBridgeHandler(BaseHTTPRequestHandler):
 
         with torch.no_grad():
             for _ in range(max_tokens):
-                inp_t = torch.tensor([input_ids[-512:]], dtype=torch.long, device=GLOBAL_DEVICE)
-                logits = GLOBAL_MODEL(inp_t)
+                inp_t = torch.tensor([input_ids[-512:]], dtype=torch.long, device=device)
+                logits = model(inp_t)
                 last_logits = logits[0, -1, :] / max(0.1, temperature)
                 probs = F.softmax(last_logits, dim=-1)
                 next_token = int(torch.multinomial(probs, num_samples=1).item())
                 input_ids.append(next_token)
 
-        generated_text = GLOBAL_TOKENIZER.decode(input_ids[len(tokens):])
+        generated_text = tokenizer.decode(input_ids[len(tokens):])
 
         # Return Ollama / OpenAI response format
         response = {

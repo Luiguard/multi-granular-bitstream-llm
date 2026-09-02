@@ -75,9 +75,9 @@ def run_benchmark(checkpoint_path: str, vocab_file: str, output_file: str = "/ho
     print("\n📊 Starte Auswertung über Testkategorien:\n")
 
     for idx, item in enumerate(BENCHMARK_PROMPTS, 1):
-        category = item["category"]
-        prompt = item["prompt"]
-        expected = item["expected_keywords"]
+        category: str = str(item["category"])
+        prompt: str = str(item["prompt"])
+        expected: List[str] = list(item["expected_keywords"])  # type: ignore
 
         tokens = tokenizer.encode(prompt)
         input_ids = list(tokens)

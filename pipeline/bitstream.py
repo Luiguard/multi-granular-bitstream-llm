@@ -1,7 +1,7 @@
 import math
 import struct
 from dataclasses import dataclass
-from typing import BinaryIO, Iterator, List, Tuple
+from typing import BinaryIO, Iterator, List, Tuple, Optional
 import numpy as np
 
 
@@ -48,7 +48,7 @@ class BitstreamHeader:
 class BitstreamEncoder:
     """Encodes token ID sequences into packed binary bitstreams."""
 
-    def __init__(self, vocab_size: int, bit_width: int = None):
+    def __init__(self, vocab_size: int, bit_width: Optional[int] = None):
         self.vocab_size = vocab_size
         self.bit_width = bit_width if bit_width is not None else max(1, math.ceil(math.log2(max(2, vocab_size))))
 

@@ -5,7 +5,7 @@ a fraction (e.g. 250 Million parameters) per token, perfectly suited for running
 """
 
 import math
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -103,3 +103,94 @@ class SparseMoELayer(nn.Module):
                 final_output[mask2] += self.experts[expert_idx](expert_input2) * w2
 
         return final_output.view(B, T, C), aux_loss
+
+
+class SharedPlusTop1MoELayer(nn.Module):
+    """DeepSeek-style Shared Expert + Dedicated Top-1 Specialist MoE Layer.
+
+    Architectural Advantages:
+    - 1x Permanent Shared Expert: Handles universal language, syntax, grammar baseline.
+    - N x High-Capacity Routed Specialists: Pure domain knowledge (Coding, STEM, Law, Multi-ling).
+      Zero linguistic ballast in the specialist!
+    - Top-1 Dispatching: Exactly 1 specialist active per token (+ 1 shared expert).
+      Zero-OOM safety: Total active FLOPs remain identical to baseline while specialist capacity is +50% larger!
+    """
+
+    def __init__(
+        self,
+        d_model: int = 2048,
+        shared_dim: int = 2048,
+        specialist_dim: int = 6144,
+        num_experts: int = 10,
+        routing_k: int = 1,
+    ):
+        super().__init__()
+        self.d_model = d_model
+        self.num_experts = num_experts
+        self.routing_k = routing_k
+
+        # 1. Permanent Shared Expert (Universal grammar & basic syntax)
+        self.shared_expert = SwiGLUFeedForward(d_model, shared_dim)
+
+        # 2. Router for Specialists
+        self.router = nn.Linear(d_model, num_experts, bias=False)
+
+        # 3. Dedicated High-Capacity Specialists
+        self.experts = nn.ModuleList([
+            SwiGLUFeedForward(d_model, specialist_dim)
+            for _ in range(num_experts)
+        ])
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        domain_bias: Optional[torch.Tensor] = None,
+        domain_cluster: Optional[int] = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        B, T, C = x.shape
+        flat_x = x.view(-1, C)
+
+        # 1. Shared Expert processes all tokens (permanent linguistic / structural backbone)
+        shared_out = self.shared_expert(flat_x)
+
+        # 2. Route to Top-k Specialist
+        logits = self.router(flat_x).float().clamp(-30.0, 30.0)
+
+        # Soft cluster bias if specified (e.g. cluster 0 = coding experts)
+        if domain_cluster is not None and self.num_experts >= 3:
+            cluster_size = max(1, self.num_experts // 3)
+            start_idx = (domain_cluster % 3) * cluster_size
+            end_idx = min(self.num_experts, start_idx + cluster_size)
+            bias = torch.zeros(self.num_experts, dtype=logits.dtype, device=logits.device)
+            bias[start_idx:end_idx] = 1.25
+            logits = logits + bias
+
+        if domain_bias is not None:
+            logits = logits + domain_bias.to(device=logits.device, dtype=logits.dtype)
+
+        probs = F.softmax(logits, dim=-1).type_as(x)
+
+        if self.routing_k == 1:
+            top_weights, top_indices = torch.max(probs, dim=-1)
+            top_weights = top_weights.unsqueeze(-1)
+            top_indices = top_indices.unsqueeze(-1)
+        else:
+            top_weights, top_indices = torch.topk(probs, k=self.routing_k, dim=-1)
+            top_weights = top_weights / torch.clamp(top_weights.sum(dim=-1, keepdim=True), min=1e-6)
+
+        specialist_out = torch.zeros_like(flat_x)
+        for expert_idx in range(self.num_experts):
+            for k in range(self.routing_k):
+                mask = (top_indices[:, k] == expert_idx)
+                if mask.any():
+                    w = top_weights[mask, k].unsqueeze(-1)
+                    specialist_out[mask] += self.experts[expert_idx](flat_x[mask]) * w
+
+        # Load balancing loss
+        density = probs.float().mean(dim=0)
+        fraction = (probs > (1.0 / self.num_experts)).float().mean(dim=0)
+        aux_loss = (self.num_experts * torch.sum(density * fraction)).type_as(x)
+
+        final_out = flat_x + shared_out + specialist_out
+        return final_out.view(B, T, C), aux_loss
+
