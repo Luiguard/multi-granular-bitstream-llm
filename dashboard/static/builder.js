@@ -366,46 +366,58 @@ const btnDownloadBundle = document.getElementById('btn-download-bundle');
 if (btnDownloadBundle) {
   btnDownloadBundle.addEventListener('click', async () => {
     btnDownloadBundle.disabled = true;
-    btnDownloadBundle.innerHTML = '<span>⏳ Schnüre Paket...</span>';
+    btnDownloadBundle.innerHTML = '<span>⏳ Schnüre Paket mit Vokabular...</span>';
+
+    const rawName = (inputModelName && inputModelName.value) ? inputModelName.value.trim() : 'Custom_MoE';
+    const modelName = rawName.replace(/\s+/g, '_') || 'Custom_MoE';
 
     const payload = {
-      name: inputModelName.value || 'Custom_MoE',
-      d_model: parseInt(selectDModel.value),
-      n_layers: parseInt(selectLayers.value),
-      n_heads: parseInt(selectHeads.value),
-      num_experts: parseInt(selectExperts.value),
-      top_k: parseInt(selectTopK.value),
-      max_seq_len: parseInt(selectSeqLen.value),
-      vocab_size: parseInt(selectVocab.value),
+      name: modelName,
+      d_model: parseInt(selectDModel.value) || 2048,
+      n_layers: parseInt(selectLayers.value) || 24,
+      n_heads: parseInt(selectHeads.value) || 16,
+      num_experts: parseInt(selectExperts ? selectExperts.value : 12) || 12,
+      top_k: parseInt(selectTopK ? selectTopK.value : 2) || 2,
+      max_seq_len: parseInt(selectSeqLen.value) || 7168,
+      vocab_size: parseInt(selectVocab ? selectVocab.value : 1048576) || 1048576,
       guardrails: {
-        rlvr_strictness: parseInt(rangeRlvr.value) / 100,
-        hallucination_guard: parseInt(rangeGuard.value) / 100,
-        epistemic_curiosity: parseInt(rangeCuriosity.value) / 100,
+        rlvr_strictness: rangeRlvr ? parseInt(rangeRlvr.value) / 100 : 0.85,
+        hallucination_guard: rangeGuard ? parseInt(rangeGuard.value) / 100 : 0.90,
+        epistemic_curiosity: rangeCuriosity ? parseInt(rangeCuriosity.value) / 100 : 0.75,
       }
     };
 
     try {
-      const res = await fetch('/api/builder/download_bundle', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+      const qParams = new URLSearchParams({
+        name: payload.name,
+        d_model: payload.d_model,
+        n_layers: payload.n_layers,
+        n_heads: payload.n_heads,
+        num_experts: payload.num_experts,
+        top_k: payload.top_k,
+        max_seq_len: payload.max_seq_len,
+        vocab_size: payload.vocab_size,
+        rlvr_strictness: payload.guardrails.rlvr_strictness,
+        hallucination_guard: payload.guardrails.hallucination_guard,
+        epistemic_curiosity: payload.guardrails.epistemic_curiosity
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${payload.name}_training_bundle.zip`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      showToast(`📦 Trainings-Paket '${payload.name}_training_bundle.zip' erfolgreich heruntergeladen!`);
+      const downloadUrl = `/api/builder/download_bundle?${qParams.toString()}`;
+
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.href = downloadUrl;
+      downloadAnchor.setAttribute('download', `${payload.name}_training_bundle.zip`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      setTimeout(() => downloadAnchor.remove(), 1000);
+
+      showToast(`📦 Trainings-Paket '${payload.name}_training_bundle.zip' (inkl. Vokabular) wird heruntergeladen!`);
     } catch (err) {
       showToast(`❌ Fehler beim Herunterladen: ${err.message}`);
     } finally {
-      btnDownloadBundle.disabled = false;
-      btnDownloadBundle.innerHTML = '<span>📦 Komplettes Trainings-Paket (.zip) Herunterladen</span>';
+      setTimeout(() => {
+        btnDownloadBundle.disabled = false;
+        btnDownloadBundle.innerHTML = '<span>📦 Komplettes Trainings-Paket (.zip) Herunterladen</span>';
+      }, 2000);
     }
   });
 }

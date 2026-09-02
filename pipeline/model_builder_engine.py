@@ -289,11 +289,8 @@ if __name__ == "__main__":
         return f'''#!/usr/bin/env python3
 """
 OpenAI-Compatible REST API Server for {self.name}.
-Compatible with OpenWebUI, LangChain, Cursor, VS Code Continue, LlamaIndex & cURL.
-Endpoints:
-  - GET  /v1/models
-  - POST /v1/chat/completions
-  - POST /v1/completions
+Architecture: {self.compute_parameters()["total_params_billion"]}B Total | {self.num_experts} Experts (Top-{self.top_k})
+Run with: python api_server.py
 """
 
 import json
@@ -302,15 +299,21 @@ import os
 import sys
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import torch
-import torch.nn.functional as F
 from model import {class_name}
+from vocabulary import MultiGranularVocabulary
+from tokenizer import ViterbiTokenizer
 
 PORT = int(os.environ.get("PORT", 8000))
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
 
-print(f"🚀 Initialisiere {self.name} API Server auf {{DEVICE}}...")
+print(f"🚀 Initialisiere {self.name} auf {{DEVICE}}...")
 MODEL = {class_name}().to(DEVICE)
 MODEL.eval()
+
+VOCAB_FILE = "vocab.bin" if os.path.exists("vocab.bin") else "vocab.json"
+print(f"📖 Lade Vokabular aus {{VOCAB_FILE}}...")
+VOCAB = MultiGranularVocabulary.load_file(VOCAB_FILE)
+TOKENIZER = ViterbiTokenizer(VOCAB)
 
 class OpenAIAPIHandler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
@@ -349,21 +352,22 @@ class OpenAIAPIHandler(BaseHTTPRequestHandler):
             max_tokens = int(body.get("max_tokens", 100))
             temperature = float(body.get("temperature", 0.7))
             
-            # Simple greedy / multinomial generation
             prompt_text = "\\n".join([f"{{m.get('role', 'user')}}: {{m.get('content', '')}}" for m in messages]) + "\\nassistant:"
-            input_ids = [ord(c) % {self.vocab_size} for c in prompt_text[-256:]] or [1]
+            encoded_tokens = TOKENIZER.encode(prompt_text)
+            input_ids = list(encoded_tokens) if encoded_tokens else [1]
 
-            output_text = ""
+            generated_ids = []
             with torch.no_grad():
                 for _ in range(max_tokens):
                     inp_t = torch.tensor([input_ids[-128:]], dtype=torch.long, device=DEVICE)
                     logits, _ = MODEL(inp_t)
                     next_id = int(torch.argmax(logits[0, -1, :]).item())
                     input_ids.append(next_id)
-                    output_text += chr(next_id % 128) if (next_id % 128) >= 32 else " "
+                    generated_ids.append(next_id)
                     if next_id == 0:
                         break
 
+            output_text = TOKENIZER.decode(generated_ids)
             res = {{
                 "id": f"chatcmpl-{{int(time.time())}}",
                 "object": "chat.completion",
@@ -375,9 +379,9 @@ class OpenAIAPIHandler(BaseHTTPRequestHandler):
                     "finish_reason": "stop"
                 }}],
                 "usage": {{
-                    "prompt_tokens": len(prompt_text),
-                    "completion_tokens": len(output_text),
-                    "total_tokens": len(prompt_text) + len(output_text)
+                    "prompt_tokens": len(encoded_tokens),
+                    "completion_tokens": len(generated_ids),
+                    "total_tokens": len(encoded_tokens) + len(generated_ids)
                 }}
             }}
             self.send_response(200)
@@ -411,6 +415,8 @@ import sys
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import torch
 from model import {class_name}
+from vocabulary import MultiGranularVocabulary
+from tokenizer import ViterbiTokenizer
 
 PORT = int(os.environ.get("PORT", 8080))
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
@@ -418,6 +424,11 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.b
 print(f"🚀 Lade {self.name} Web-Chat auf {{DEVICE}}...")
 MODEL = {class_name}().to(DEVICE)
 MODEL.eval()
+
+VOCAB_FILE = "vocab.bin" if os.path.exists("vocab.bin") else "vocab.json"
+print(f"📖 Lade Vokabular aus {{VOCAB_FILE}}...")
+VOCAB = MultiGranularVocabulary.load_file(VOCAB_FILE)
+TOKENIZER = ViterbiTokenizer(VOCAB)
 
 HTML_PAGE = """<!DOCTYPE html>
 <html lang="de">
@@ -441,7 +452,7 @@ HTML_PAGE = """<!DOCTYPE html>
 <body>
   <header>
     <h1>🌌 {self.name}</h1>
-    <span style="font-size: 0.8rem; background: #1e293b; padding: 4px 10px; border-radius: 6px;">{self.num_experts} Experten · 18-Bit</span>
+    <span style="font-size: 0.8rem; background: #1e293b; padding: 4px 10px; border-radius: 6px;">{self.num_experts} Experten · Vokabular: {self.vocab_size}</span>
   </header>
   <div id="chat-container">
     <div class="msg bot">Hallo! Ich bin dein maßgeschneidertes <strong>{self.name}</strong> Modell. Wie kann ich dir helfen?</div>
@@ -496,19 +507,20 @@ class WebChatHandler(BaseHTTPRequestHandler):
             body = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {{}}
             prompt = body.get("prompt", "")
             
-            # Simple greedy decode
-            input_ids = [ord(c) % {self.vocab_size} for c in prompt[-128:]] or [1]
-            output_text = ""
+            encoded_tokens = TOKENIZER.encode(prompt)
+            input_ids = list(encoded_tokens) if encoded_tokens else [1]
+            generated_ids = []
             with torch.no_grad():
                 for _ in range(50):
                     inp_t = torch.tensor([input_ids[-128:]], dtype=torch.long, device=DEVICE)
                     logits, _ = MODEL(inp_t)
                     next_id = int(torch.argmax(logits[0, -1, :]).item())
                     input_ids.append(next_id)
-                    output_text += chr(next_id % 128) if (next_id % 128) >= 32 else " "
+                    generated_ids.append(next_id)
                     if next_id == 0:
                         break
 
+            output_text = TOKENIZER.decode(generated_ids)
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
@@ -534,13 +546,20 @@ import os
 import time
 import torch
 from model import {class_name}
+from vocabulary import MultiGranularVocabulary
+from tokenizer import ViterbiTokenizer
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"))
 
 print("=" * 65)
-print(f"🌌 {self.name} · Terminal CLI Chat (18-Bit MoE)")
-print(f"Hardware: {{DEVICE}} | Parameter: {self.compute_parameters()['total_params_billion']}B Total")
+print(f"🌌 {self.name} · Terminal CLI Chat")
+print(f"Hardware: {{DEVICE}} | Parameter: {self.compute_parameters()['total_params_billion']}B Total | Vokabular: {self.vocab_size}")
 print("=" * 65)
+
+VOCAB_FILE = "vocab.bin" if os.path.exists("vocab.bin") else "vocab.json"
+print(f"📖 Lade Vokabular aus {{VOCAB_FILE}}...")
+VOCAB = MultiGranularVocabulary.load_file(VOCAB_FILE)
+TOKENIZER = ViterbiTokenizer(VOCAB)
 print("Tippe 'exit' oder 'quit' zum Beenden.\\n")
 
 model = {class_name}().to(DEVICE)
@@ -556,7 +575,8 @@ while True:
             break
 
         print("\\033[1;35m{self.name}:\\033[0m ", end="", flush=True)
-        input_ids = [ord(c) % {self.vocab_size} for c in user_input[-128:]] or [1]
+        encoded_tokens = TOKENIZER.encode(user_input)
+        input_ids = list(encoded_tokens) if encoded_tokens else [1]
 
         with torch.no_grad():
             for _ in range(60):
@@ -564,8 +584,8 @@ while True:
                 logits, _ = model(inp_t)
                 next_id = int(torch.argmax(logits[0, -1, :]).item())
                 input_ids.append(next_id)
-                char_out = chr(next_id % 128) if (next_id % 128) >= 32 else " "
-                print(char_out, end="", flush=True)
+                token_str = TOKENIZER.decode([next_id])
+                print(token_str, end="", flush=True)
                 time.sleep(0.015)
                 if next_id == 0:
                     break
@@ -750,6 +770,35 @@ curl http://localhost:8000/v1/chat/completions \\
             zf.writestr("requirements.txt", reqs_txt)
             zf.writestr("README.md", readme_md)
 
+            # Standalone Tokenizer & Vocabulary Module
+            tokenizer_src = "/home/benjamin/Bilder/pipeline/tokenizer.py"
+            vocab_src = "/home/benjamin/Bilder/pipeline/vocabulary.py"
+            if os.path.exists(tokenizer_src):
+                zf.write(tokenizer_src, arcname="tokenizer.py")
+            if os.path.exists(vocab_src):
+                zf.write(vocab_src, arcname="vocabulary.py")
+
+            # Echte Vokabular-Dateien passend zur Vokabular-Breite (16-Bit, 18-Bit oder 20-Bit)
+            if self.vocab_size >= 1000000:
+                bin_1m = "/home/benjamin/Bilder/data/vocab_1m_20bit.bin"
+                meta_1m = "/home/benjamin/Bilder/data/vocab_1m_metadata.json"
+                if os.path.exists(bin_1m):
+                    zf.write(bin_1m, arcname="vocab.bin")
+                if os.path.exists(meta_1m):
+                    zf.write(meta_1m, arcname="vocab_metadata.json")
+            elif self.vocab_size == 262144:
+                json_262k = "/home/benjamin/Bilder/data/vocab_262k.json"
+                if os.path.exists(json_262k):
+                    zf.write(json_262k, arcname="vocab.json")
+            elif self.vocab_size == 65536:
+                json_65k = "/home/benjamin/Bilder/data/vocab_65k.json"
+                if os.path.exists(json_65k):
+                    zf.write(json_65k, arcname="vocab.json")
+            else:
+                bin_1m = "/home/benjamin/Bilder/data/vocab_1m_20bit.bin"
+                if os.path.exists(bin_1m):
+                    zf.write(bin_1m, arcname="vocab.bin")
+
         print(f"  📦 Universelles All-in-One Paket geschnürt -> {output_zip_path}")
         return output_zip_path
 
@@ -758,6 +807,19 @@ curl http://localhost:8000/v1/chat/completions \\
 
 # Presets Library (1 Exp 100M bis 1 Exp 144B & Multi-MoE)
 MODEL_PRESETS = {
+    "moe_golden_20bit_7b": {
+        "name": "Bitstream-20Bit-MoE-7.45B",
+        "d_model": 2048,
+        "n_layers": 24,
+        "n_heads": 16,
+        "num_experts": 12,
+        "top_k": 2,
+        "ffn_multiplier": 2.0,
+        "vocab_size": 1048576,
+        "rank_embedding": 64,
+        "max_seq_len": 7168,
+        "description": "🌟 20-Bit Golden Master (1.048.576 Tokens · 175+ Sprachen) mit 12 Experten auf 6 GB VRAM.",
+    },
     "exp1_100m": {
         "name": "Bitstream-1Exp-100M",
         "d_model": 512,

@@ -75,6 +75,9 @@ class TestCompleteBundle(unittest.TestCase):
             "docker-compose.yml",
             "requirements.txt",
             "README.md",
+            "tokenizer.py",
+            "vocabulary.py",
+            "vocab.json",
         ]
 
         with zipfile.ZipFile(zip_path, "r") as zf:

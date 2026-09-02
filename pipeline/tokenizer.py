@@ -1,6 +1,10 @@
 import math
 from typing import Dict, List, Optional, Tuple
-from .vocabulary import MultiGranularVocabulary, TokenTier
+
+try:
+    from .vocabulary import MultiGranularVocabulary, TokenTier
+except (ImportError, ValueError):
+    from vocabulary import MultiGranularVocabulary, TokenTier
 
 
 class ViterbiTokenizer:

@@ -171,7 +171,8 @@
           <div class="form-group">
             <label for="select-vocab">Vokabular-Breite</label>
             <select id="select-vocab" class="form-select">
-              <option value="262144" selected>18-Bit Viterbi (262.144 Tokens)</option>
+              <option value="1048576" selected>20-Bit Golden Master (1.048.576 Tokens · 175+ Sprachen)</option>
+              <option value="262144">18-Bit Viterbi (262.144 Tokens)</option>
               <option value="65536">16-Bit Viterbi (65.536 Tokens)</option>
             </select>
           </div>
@@ -277,6 +278,12 @@
         <div style="background: rgba(15, 23, 42, 0.6); padding: 14px 18px; border-radius: 10px; border: 1px solid rgba(51, 65, 85, 0.5);">
           <label style="font-weight: 700; font-size: 0.88rem; color: #38bdf8; display: block; margin-bottom: 10px;">📦 Im 1-Klick Download (.zip) enthaltene Komponenten:</label>
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; font-size: 0.85rem;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" checked disabled> <span>📖 <strong>vocab.bin / vocab.json</strong> (Echtes Vokabular)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" checked disabled> <span>🔤 <strong>tokenizer.py & vocabulary.py</strong> (Viterbi Engine)</span>
+            </label>
             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
               <input type="checkbox" checked disabled> <span>🐍 <strong>model.py</strong> (PyTorch MoE Architektur)</span>
             </label>
