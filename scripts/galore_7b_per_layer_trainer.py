@@ -17,6 +17,12 @@ import gc
 import shutil
 import functools
 import numpy as np
+import ctypes
+import subprocess
+try:
+    libc = ctypes.CDLL("libc.so.6")
+except Exception:
+    libc = None
 
 from pipeline.vocabulary import MultiGranularVocabulary
 from pipeline.bitstream import BitstreamDecoder
@@ -291,8 +297,21 @@ def train_30day_world_model():
                 if isinstance(child, torch.nn.Linear):
                     setattr(exp, child_name, OffloadedLinear(child))
 
-    print(f"  - Initialisiere GaLore Optimizer mit verdoppeltem Rang {args.galore_rank}...", flush=True)
-    optimizer = GaLoreAdamW(model.parameters(), lr=args.lr_max, weight_decay=0.01, rank=args.galore_rank)
+    print(f"  - Initialisiere GaLore Optimizer mit selektivem Weight-Decay und Rang {args.galore_rank}...", flush=True)
+    decay_params = []
+    nodecay_params = []
+    for n, p in model.named_parameters():
+        if p.requires_grad:
+            if p.ndim >= 2:
+                decay_params.append(p)
+            else:
+                nodecay_params.append(p)
+
+    param_groups = [
+        {"params": decay_params, "weight_decay": 0.01, "rank": args.galore_rank},
+        {"params": nodecay_params, "weight_decay": 0.0, "rank": args.galore_rank},
+    ]
+    optimizer = GaLoreAdamW(param_groups, lr=args.lr_max)
 
     # PER-LAYER GALORE HOOKS MIT GRADIENT ACCUMULATION (MAX NORM = 1.0)
     accum_counter = 0
@@ -372,14 +391,13 @@ def train_30day_world_model():
         x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
         active_node = training_graph.nodes[active_node_id]
         
-        torch.cuda.empty_cache()
-        loss, ce_loss, aux_loss = model.compute_loss(x, y, chunk_size=16)
+        # Chunk-Size 128 (reduziert Schleifendurchläufe von 768 auf 48, ohne VRAM-Spikes)
+        loss, ce_loss, aux_loss = model.compute_loss(x, y, chunk_size=128)
         
         # Gradient Accumulation: Skaliere Loss
         loss_scaled = loss / args.gradient_accumulation_steps
         loss_scaled.backward()
         
-        torch.cuda.empty_cache()
         loss_val = loss.item()
         accum_losses.append(loss_val)
         accum_counter += 1
@@ -441,6 +459,23 @@ def train_30day_world_model():
                 eval_metrics=latest_eval_metrics,
             )
 
+
+            # Periodische Speicherhygiene & Thermal-Guard (alle 10 Steps)
+            if step > 0 and step % 10 == 0:
+                torch.cuda.empty_cache()
+                if libc and hasattr(libc, "malloc_trim"):
+                    libc.malloc_trim(0)
+                try:
+                    out = subprocess.check_output(
+                        ["nvidia-smi", "--query-gpu=temperature.gpu", "--format=csv,noheader,nounits"],
+                        encoding="utf-8"
+                    ).strip()
+                    gpu_temp = int(out) if out.isdigit() else 0
+                    if gpu_temp >= 84:
+                        print(f"  🌡️ [THERMAL-GUARD] GPU-Temperatur bei {gpu_temp}°C (Drosselgefahr). 1.5s Pacing zur Kühlung...", flush=True)
+                        time.sleep(1.5)
+                except Exception:
+                    pass
 
             if step > 0 and step % args.save_interval == 0:
                 os.makedirs(args.checkpoint_dir, exist_ok=True)

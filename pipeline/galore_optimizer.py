@@ -278,8 +278,10 @@ class GaLoreAdamW(Optimizer):
         if p.grad is None:
             return
 
-        # Find the group for this parameter (usually there is only 1 group)
-        group = self.param_groups[0]
+        # Find the group for this parameter via O(1) cached lookup
+        if not hasattr(self, "_p_to_group"):
+            self._p_to_group = {id(param): g for g in self.param_groups for param in g["params"]}
+        group = self._p_to_group.get(id(p), self.param_groups[0])
         lr = group["lr"]
         beta1, beta2 = group["betas"]
         eps = group["eps"]

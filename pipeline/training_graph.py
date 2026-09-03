@@ -357,14 +357,27 @@ class TrainingKnowledgeGraph:
         """Samples a training batch dynamically according to curriculum weights and remediation boost."""
         self.update_gating()
 
-        eligible_nodes = [n for n in self.nodes.values() if n.status in ("ACTIVE", "MASTERED") and n.total_shards > 0]
-        if not eligible_nodes:
-            # Fallback to root node if everything is locked
-            eligible_nodes = [self.nodes["node_0_foundation"]]
+        active_nodes = [n for n in self.nodes.values() if n.status in ("ACTIVE", "MASTERED") and n.total_shards > 0]
+        if not active_nodes:
+            active_nodes = [self.nodes["node_0_foundation"]]
+
+        active_ids = {n.node_id for n in active_nodes}
+        # Soft Curriculum Blending: Direkte Folgeknoten mit Shards sanft beimischen (z.B. ~15% Cyber/Minecraft, ~15% STEM)
+        # Verhindert Experten-Verhungern und trainiert Experten 1 & 2 von Beginn an auf ihren Zieldomänen.
+        exploratory_nodes = [
+            n for n in self.nodes.values()
+            if n.status == "LOCKED" and n.total_shards > 0 and any(p in active_ids for p in n.prerequisites)
+        ]
+
+        eligible_nodes = active_nodes + exploratory_nodes
 
         # Calculate sampling weights: Gedämpfte, verhältnismäßige Skalierung (Anti-Thrashing)
         weights = []
         for node in eligible_nodes:
+            if node in exploratory_nodes:
+                weights.append(0.20)
+                continue
+
             # Sanfter tanh-Faktor begrenzt den Einfluss extremer Loss-Werte auf [0.75, 1.35]
             loss_ratio = max(0.1, node.moving_loss / max(0.1, node.mastery_threshold))
             loss_factor = 1.0 + 0.35 * math.tanh(loss_ratio - 1.0)
