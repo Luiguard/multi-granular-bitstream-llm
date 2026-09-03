@@ -12,6 +12,7 @@ import os
 import glob
 import math
 import random
+import threading
 from typing import Dict, List, Optional, Tuple, Any
 import numpy as np
 import torch
@@ -54,6 +55,9 @@ class KnowledgeNode:
         self.last_remediation_step: int = 0
 
         self._cached_tokens: Optional[np.ndarray] = None
+        self._prefetched_tokens: Optional[np.ndarray] = None
+        self._prefetch_thread: Optional[threading.Thread] = None
+        self._prefetch_lock = threading.Lock()
         self._current_shard_idx: int = 0
         self._token_cursor: int = 0
 
@@ -74,10 +78,60 @@ class KnowledgeNode:
     def total_shards(self) -> int:
         return len(self.shard_files)
 
+    def _async_prefetch_next_shard(self):
+        """Asynchroner Background-Thread lädt nächsten Shard in Staging-Puffer (0 ms GPU-Wait)."""
+        with self._prefetch_lock:
+            if self._prefetched_tokens is not None or (self._prefetch_thread and self._prefetch_thread.is_alive()):
+                return
+            
+            def worker():
+                if not self.shard_files:
+                    return
+                idx = self._current_shard_idx
+                attempts = 0
+                while attempts < len(self.shard_files):
+                    shard_path = self.shard_files[idx]
+                    idx = (idx + 1) % len(self.shard_files)
+                    attempts += 1
+                    try:
+                        if shard_path.endswith(".mgbs"):
+                            _, tokens = BitstreamDecoder.load_from_file(shard_path)
+                        else:
+                            tokens = np.fromfile(shard_path, dtype=np.uint16).tolist()
+
+                        if len(tokens) >= 512:
+                            self._prefetched_tokens = np.array(tokens, dtype=np.int64)
+                            self._current_shard_idx = idx
+                            return
+                    except Exception:
+                        continue
+
+            self._prefetch_thread = threading.Thread(target=worker, daemon=True)
+            self._prefetch_thread.start()
+
     def _load_next_shard(self) -> bool:
         if not self.shard_files:
             return False
 
+        # 1. Wenn asynchron vorgecachter Shard bereitliegt: Sofortiger 0-ms Swap!
+        if self._prefetched_tokens is not None:
+            self._cached_tokens = self._prefetched_tokens
+            self._prefetched_tokens = None
+            self._token_cursor = 0
+            self._async_prefetch_next_shard()
+            return True
+
+        # 2. Falls Prefetch-Thread noch dekodiert: Warte kurz (normalerweise schon fertig)
+        if self._prefetch_thread and self._prefetch_thread.is_alive():
+            self._prefetch_thread.join(timeout=2.0)
+            if self._prefetched_tokens is not None:
+                self._cached_tokens = self._prefetched_tokens
+                self._prefetched_tokens = None
+                self._token_cursor = 0
+                self._async_prefetch_next_shard()
+                return True
+
+        # 3. Synchroner Fallback falls Thread noch nicht lief
         attempts = 0
         while attempts < len(self.shard_files):
             shard_path = self.shard_files[self._current_shard_idx]
@@ -93,6 +147,7 @@ class KnowledgeNode:
                 if len(tokens) >= 512:
                     self._cached_tokens = np.array(tokens, dtype=np.int64)
                     self._token_cursor = 0
+                    self._async_prefetch_next_shard()
                     return True
             except Exception:
                 continue
@@ -103,14 +158,18 @@ class KnowledgeNode:
         needed = batch_size * (seq_len + 1)
         if self._cached_tokens is None or self._token_cursor + needed >= len(self._cached_tokens):
             if not self._load_next_shard():
-                # Fallback: synthetic pseudo-token pattern if shard loading exhausted
+                # Fallback: synthetisches Pseudo-Token-Muster falls Shards erschöpft
                 self._cached_tokens = np.random.randint(0, 65536, size=needed * 4, dtype=np.int64)
                 self._token_cursor = 0
 
         assert self._cached_tokens is not None
         tokens_arr: np.ndarray = self._cached_tokens
 
-        # Extract sequential batch slices
+        # Wenn Shard zu 60% verbraucht ist: Asynchron nächsten Shard im RAM vorbereiten
+        if self._token_cursor > len(tokens_arr) * 0.6:
+            self._async_prefetch_next_shard()
+
+        # Sequenzielle Batch-Slices extrahieren
         x_list = []
         y_list = []
         for _ in range(batch_size):
@@ -130,8 +189,9 @@ class KnowledgeNode:
             x_list.append(x_seq)
             y_list.append(y_seq)
 
-        x_tensor = torch.tensor(np.stack(x_list), dtype=torch.long)
-        y_tensor = torch.tensor(np.stack(y_list), dtype=torch.long)
+        # DMA-optimierter Pinned Memory für verzögerungsfreien PCIe-Transfer
+        x_tensor = torch.tensor(np.stack(x_list), dtype=torch.long).pin_memory()
+        y_tensor = torch.tensor(np.stack(y_list), dtype=torch.long).pin_memory()
         return x_tensor, y_tensor
 
     def update_loss(self, loss_val: float):
@@ -188,11 +248,12 @@ class TrainingKnowledgeGraph:
         # 2. Node 1: Cyber, Code & Minecraft Knowledge (Requires Foundation)
         self.add_node(KnowledgeNode(
             node_id="node_1_cyber_web",
-            name="Cyber & Web Knowledge",
-            description="Netzwerkprotokolle, Web-Strukturen & Code-Tokens",
+            name="Cyber, Code & Minecraft",
+            description="Netzwerkprotokolle, Java/Minecraft Engine & Voxel-Physics",
             shard_dirs=[
                 os.path.join(self.base_dir, "data/cyber_web_knowledge/shards"),
                 os.path.join(self.base_dir, "data/cyber_web_knowledge"),
+                os.path.join(self.base_dir, "data/java_minecraft_knowledge/shards"),
             ],
             prerequisites=["node_0_foundation"],
             mastery_threshold=5.8,
@@ -356,8 +417,10 @@ class TrainingKnowledgeGraph:
     def get_telemetry_state(self) -> Dict[str, Any]:
         """Serializes current graph topology, nodes, edges, and mastery for dashboard telemetry."""
         nodes_data = []
-        for n in self.nodes.values():
-            n._discover_shards()
+        self._telemetry_counter = getattr(self, "_telemetry_counter", 0) + 1
+        if self._telemetry_counter % 50 == 1:
+            for n in self.nodes.values():
+                n._discover_shards()
             nodes_data.append({
                 "id": n.node_id,
                 "name": n.name,

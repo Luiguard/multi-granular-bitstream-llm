@@ -661,7 +661,7 @@ async function loadMemoryGraph() {
     const res = await fetch('/api/memory/graph');
     const data = await res.json();
 
-    statsEl.innerHTML = `📊 <strong>${data.total_nodes} Entitäten</strong> · <strong>${data.total_links} Relationen</strong> im 18-Bit Viterbi Bitstream`;
+    statsEl.innerHTML = `📊 <strong>${data.total_nodes} Entitäten</strong> · <strong>${data.total_links} Relationen</strong> im 20-Bit Golden Master Bitstream`;
 
     if (!data.links || data.links.length === 0) {
       listEl.innerHTML = '<div style="font-size:0.75rem;color:var(--text-muted);">Keine Fakten gespeichert.</div>';

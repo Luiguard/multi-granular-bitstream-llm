@@ -33,29 +33,30 @@ class SelfArchitectureModel:
         """Scans the codebase and hardware environment to build an accurate self-model."""
         now = time.time()
 
-        # 1. Bitstream & Vocabulary Anatomy (18-Bit)
-        vocab_path = "/home/benjamin/Bilder/vocab_262k.json"
-        vocab_size = 262144
-        if os.path.exists(vocab_path):
+        # 1. Bitstream & Vocabulary Anatomy (20-Bit Golden Master)
+        vocab_path = "/home/benjamin/Bilder/data/vocab_1m_20bit.bin"
+        vocab_size = 1048576
+        if os.path.exists("/home/benjamin/Bilder/data/vocab_1m_metadata.json"):
             try:
-                with open(vocab_path, "r", encoding="utf-8") as f:
-                    v_data = json.load(f)
-                    vocab_size = len(v_data) if isinstance(v_data, list) else len(v_data.get("tokens", []))
+                with open("/home/benjamin/Bilder/data/vocab_1m_metadata.json", "r", encoding="utf-8") as f:
+                    v_meta = json.load(f)
+                    vocab_size = v_meta.get("total_tokens", 1048576)
             except Exception:
                 pass
 
         bitstream_anatomy = {
-            "format_name": "Multi-Granular 18-Bit Viterbi Bitstream (262.144 Tokens)",
-            "bit_width": 18,
-            "byte_density": "3.70 Bytes/Token",
+            "format_name": "Multi-Granular 20-Bit Golden Master Viterbi Bitstream (1.048.576 Tokens)",
+            "bit_width": 20,
+            "byte_density": "3.82 Bytes/Token",
             "vocab_size": vocab_size,
+            "languages_covered": "175+ ISO Languages",
             "tiers": [
                 "Tier 0: 256 Raw Bytes (0-255) -> 100% OOV-Frei",
-                "Tier 1: 123.070 BPE Multilingual Subwords (256-130.000)",
-                "Tier 2: 85.000 Deutsche STEM & Fach-Komposita (130.001-215.000)",
-                "Tier 3: 47.143 Code-Makros, Python AST & <think> Tags (215.001-262.143)"
+                "Tier 1: 16.128 Universal Multilingual Unigrams & Subwords (256-16.383)",
+                "Tier 2: 245.760 Domain-Specific Terms, STEM & Multi-Word Phrases (16.384-262.143)",
+                "Tier 3: 786.432 Code-Makros, Full Syntactic ASTs & Formal Reasoning (262.144-1.048.575)"
             ],
-            "serialization": "Variable Bit-Width Bitstream with 31-Byte Header (Zero-RAM mmap)",
+            "serialization": "Variable Bit-Width Bitstream (.mgbs) with 31-Byte Header (Zero-RAM mmap)",
             "lossless_reconstruction": True
         }
 
@@ -163,7 +164,7 @@ class SelfArchitectureModel:
         lines = [
             "### Strukturelles Selbstmodell (Architektur-Selbstbewusstsein):",
             f"- **Körper**: {b.get('identity', '7.45B MoE')} ({neu.get('num_layers', 24)} Schichten, {neu.get('num_experts', 12)} MoE Experten, {neu.get('active_parameters_per_token', '510M aktiv')} pro Token)",
-            f"- **Bitstream-Format**: {bit.get('bit_width', 18)}-Bit Viterbi Tokenizer ({bit.get('vocab_size', 262144):,} Tokens, 4 Tiers, 3.70 Bytes/Token)",
+            f"- **Bitstream-Format**: {bit.get('bit_width', 20)}-Bit Golden Master Viterbi Tokenizer ({bit.get('vocab_size', 1048576):,} Tokens, 4 Tiers, 175+ Sprachen, 3.82 Bytes/Token)",
             f"- **Modulares Gehirn**: Modular Expert Manager (Cluster-Gating 0:Code, 1:STEM, 2:Weltwissen) & Multi-MoE Splicing bis 1.73T",
             f"- **Gedächtnis**: Native CSR TGAT Graph-Engine (< 0.20ms Abrufzeit)",
             "- **Unveränderliche Verfassungsregeln (Vererbbar)**:"

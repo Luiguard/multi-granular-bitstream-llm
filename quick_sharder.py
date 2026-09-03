@@ -20,7 +20,7 @@ print("Streaming articles and generating clean 16-bit .mgbs shards...")
 stream = stream_wikipedia_articles(languages=["de", "en"], max_articles_per_lang=250)
 tokens_buf = []
 shard_idx = 0
-shard_size = 200000  # 200k tokens per shard = 400 KB per shard
+shard_size = 1_000_000  # 1M tokens per shard = 2.5 MB per shard (Optimales I/O-Profil)
 
 for doc in stream:
     t_ids = tokenizer.encode(doc)

@@ -30,7 +30,7 @@ class TestCompleteBundle(unittest.TestCase):
             num_experts=4,
             top_k=1,
             ffn_multiplier=2.0,
-            vocab_size=262144,
+            vocab_size=1048576,
             rank_embedding=32,
             max_seq_len=4096,
         )
@@ -77,7 +77,8 @@ class TestCompleteBundle(unittest.TestCase):
             "README.md",
             "tokenizer.py",
             "vocabulary.py",
-            "vocab.json",
+            "vocab.bin",
+            "vocab_metadata.json",
         ]
 
         with zipfile.ZipFile(zip_path, "r") as zf:

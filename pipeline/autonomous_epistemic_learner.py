@@ -42,13 +42,14 @@ STRICT_DOMAIN_WHITELIST = [
     "nih.gov"
 ]
 
-VOCAB_PATH = "/home/benjamin/Bilder/data/vocab_262k.json"
-if not os.path.exists(VOCAB_PATH):
-    VOCAB_PATH = "/home/benjamin/Bilder/data/vocab_65k.json"
-
-VOCAB = MultiGranularVocabulary.load_json(VOCAB_PATH)
+if os.path.exists(MultiGranularVocabulary.CANONICAL_20BIT_BIN_PATH):
+    VOCAB = MultiGranularVocabulary.load_canonical()
+elif os.path.exists("/home/benjamin/Bilder/data/vocab_262k.json"):
+    VOCAB = MultiGranularVocabulary.load_json("/home/benjamin/Bilder/data/vocab_262k.json")
+else:
+    VOCAB = MultiGranularVocabulary.load_json("/home/benjamin/Bilder/data/vocab_65k.json")
 TOKENIZER = ViterbiTokenizer(VOCAB)
-ENCODER = BitstreamEncoder(vocab_size=VOCAB.size, bit_width=18)
+ENCODER = BitstreamEncoder(vocab_size=VOCAB.size, bit_width=VOCAB.required_bits)
 
 # Domain Knowledge Gap Topic Mapping
 CURIOSITY_DOMAIN_TOPICS = {

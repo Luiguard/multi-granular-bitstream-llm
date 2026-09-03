@@ -27,7 +27,7 @@ class ModelArchitectureSpecs:
         num_experts: int = 12,
         top_k: int = 2,
         ffn_multiplier: float = 2.6875,
-        vocab_size: int = 262144,
+        vocab_size: int = 1048576,
         rank_embedding: int = 64,
         max_seq_len: int = 7168,
         expert_domains: Optional[Dict[str, List[int]]] = None,
@@ -190,7 +190,7 @@ class {class_name}(nn.Module):
         self.vocab_size = {self.vocab_size}
         self.rank_emb = {self.rank_embedding}
 
-        # 18-Bit Factorized Embedding
+        # 20-Bit Golden Master Factorized Embedding
         self.E_vocab = nn.Embedding(self.vocab_size, self.rank_emb)
         self.E_proj = nn.Linear(self.rank_emb, self.d_model, bias=False)
 
@@ -717,7 +717,7 @@ Automatisch generiert vom **Bitstream AI Architecture Studio**.
 - **Gesamt-Parameter**: {self.compute_parameters()["total_params_billion"]} Mrd.
 - **Aktive Parameter**: {self.compute_parameters()["active_params_million"]} Mio. pro Token
 - **Experten-Topologie**: {self.num_experts} Experten (Top-{self.top_k} Routing)
-- **Vokabular**: {self.vocab_size} (18-Bit Viterbi)
+- **Vokabular**: {self.vocab_size:,} (20-Bit Golden Master Viterbi)
 - **Kontext-Länge**: {self.max_seq_len} Tokens
 
 ## 🚀 Schnellstart
@@ -807,6 +807,19 @@ curl http://localhost:8000/v1/chat/completions \\
 
 # Presets Library (1 Exp 100M bis 1 Exp 144B & Multi-MoE)
 MODEL_PRESETS = {
+    "moe_option_b_8b": {
+        "name": "Bitstream-MoE-8.42B-OptionB",
+        "d_model": 2048,
+        "n_layers": 20,
+        "n_heads": 16,
+        "num_experts": 4,
+        "top_k": 2,
+        "ffn_multiplier": 8.0,
+        "vocab_size": 1048576,
+        "rank_embedding": 64,
+        "max_seq_len": 6144,
+        "description": "🏆 Option B Meisterstück: 8.42B MoE (20 Schichten, 4 Experten à 100.7M, 6.144 Kontext, GaLore Rang 64, permanente VRAM-Attention).",
+    },
     "moe_golden_20bit_7b": {
         "name": "Bitstream-20Bit-MoE-7.45B",
         "d_model": 2048,
@@ -828,7 +841,7 @@ MODEL_PRESETS = {
         "num_experts": 1,
         "top_k": 1,
         "ffn_multiplier": 2.0,
-        "vocab_size": 262144,
+        "vocab_size": 1048576,
         "rank_embedding": 32,
         "max_seq_len": 4096,
         "description": "1 Experte · 100M Single-Core für Handys, Raspberry Pi 5 und IoT.",
@@ -841,7 +854,7 @@ MODEL_PRESETS = {
         "num_experts": 1,
         "top_k": 1,
         "ffn_multiplier": 2.5,
-        "vocab_size": 262144,
+        "vocab_size": 1048576,
         "rank_embedding": 64,
         "max_seq_len": 4096,
         "description": "1 Experte · 300M Single-Core für sparsame Edge-Geräte.",
@@ -854,7 +867,7 @@ MODEL_PRESETS = {
         "num_experts": 1,
         "top_k": 1,
         "ffn_multiplier": 2.5,
-        "vocab_size": 262144,
+        "vocab_size": 1048576,
         "rank_embedding": 64,
         "max_seq_len": 4096,
         "description": "1 Experte · 1B Single-Core für mobile Apps und lokale Assistenten.",
@@ -867,7 +880,7 @@ MODEL_PRESETS = {
         "num_experts": 1,
         "top_k": 1,
         "ffn_multiplier": 2.5,
-        "vocab_size": 262144,
+        "vocab_size": 1048576,
         "rank_embedding": 64,
         "max_seq_len": 7168,
         "description": "1 Experte · 3B Single-Core für Laptops und schnelle On-Device Inferenz.",
@@ -880,7 +893,7 @@ MODEL_PRESETS = {
         "num_experts": 1,
         "top_k": 1,
         "ffn_multiplier": 2.0,
-        "vocab_size": 262144,
+        "vocab_size": 1048576,
         "rank_embedding": 64,
         "max_seq_len": 7168,
         "description": "1 Experte · 7.45B Dense: Volle Rechenleistung für komplexe Aufgaben.",
@@ -893,7 +906,7 @@ MODEL_PRESETS = {
         "num_experts": 1,
         "top_k": 1,
         "ffn_multiplier": 2.5,
-        "vocab_size": 262144,
+        "vocab_size": 1048576,
         "rank_embedding": 128,
         "max_seq_len": 8192,
         "description": "1 Experte · 14B Dense für Workstations und Coding-Assistenten.",
@@ -906,7 +919,7 @@ MODEL_PRESETS = {
         "num_experts": 1,
         "top_k": 1,
         "ffn_multiplier": 2.5,
-        "vocab_size": 262144,
+        "vocab_size": 1048576,
         "rank_embedding": 128,
         "max_seq_len": 16384,
         "description": "1 Experte · 30B Dense für anspruchsvolle Forschung und Server.",
@@ -919,7 +932,7 @@ MODEL_PRESETS = {
         "num_experts": 1,
         "top_k": 1,
         "ffn_multiplier": 3.0,
-        "vocab_size": 262144,
+        "vocab_size": 1048576,
         "rank_embedding": 256,
         "max_seq_len": 32768,
         "description": "1 Experte · 70B Dense Frontier Modell für Enterprise GPU-Cluster.",
@@ -932,7 +945,7 @@ MODEL_PRESETS = {
         "num_experts": 1,
         "top_k": 1,
         "ffn_multiplier": 3.5,
-        "vocab_size": 262144,
+        "vocab_size": 1048576,
         "rank_embedding": 256,
         "max_seq_len": 32768,
         "description": "1 Experte · 144B Monolithischer Titan: Maximaler Single-Core für Supercomputer.",
@@ -945,7 +958,7 @@ MODEL_PRESETS = {
         "num_experts": 12,
         "top_k": 2,
         "ffn_multiplier": 2.0,
-        "vocab_size": 262144,
+        "vocab_size": 1048576,
         "rank_embedding": 64,
         "max_seq_len": 7168,
         "description": "Gesplittet auf 12 Experten (Top-2 Routing ~500M aktiv) für 6 GB Laptop VRAM.",
@@ -958,7 +971,7 @@ MODEL_PRESETS = {
         "num_experts": 128,
         "top_k": 8,
         "ffn_multiplier": 3.5,
-        "vocab_size": 262144,
+        "vocab_size": 1048576,
         "rank_embedding": 256,
         "max_seq_len": 32768,
         "description": "Gesplittet auf 128 Experten: Maximale Wissensspeicherung aller Weltbibliotheken.",
@@ -971,7 +984,7 @@ MODEL_PRESETS = {
         "num_experts": 12,
         "top_k": 2,
         "ffn_multiplier": 3.5,
-        "vocab_size": 262144,
+        "vocab_size": 1048576,
         "rank_embedding": 256,
         "max_seq_len": 32768,
         "description": "12x 144B fusioniert: 1.73 Billionen Parameter Super-Intelligenz.",

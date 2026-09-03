@@ -62,7 +62,12 @@ class SparseMoELayer16(nn.Module):
         B, T, C = x.shape
         flat_x = x.view(-1, C)
 
-        shared_out = self.shared_expert(flat_x) if self.shared_expert is not None else None
+        if self.shared_expert is not None:
+            if next(self.shared_expert.parameters()).device != flat_x.device:
+                self.shared_expert.to(flat_x.device)
+            shared_out = self.shared_expert(flat_x)
+        else:
+            shared_out = None
 
         if isinstance(self.router, Top2GatingRouter):
             top2_indices, top2_weights, aux_loss = self.router(flat_x, domain_cluster=domain_cluster, expert_bias=domain_bias)
@@ -106,6 +111,53 @@ class SparseMoELayer16(nn.Module):
         return final_out.view(B, T, C), aux_loss
 
 
+class FactorizedChunkedCrossEntropy(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, proj_h: torch.Tensor, head_weight: torch.Tensor, targets: torch.Tensor, chunk_size: int = 16):
+        T, rank = proj_h.shape
+        ctx.save_for_backward(proj_h, head_weight, targets)
+        ctx.chunk_size = chunk_size
+        
+        total_loss = 0.0
+        with torch.no_grad():
+            for i in range(0, T, chunk_size):
+                p_c = proj_h[i : i + chunk_size]
+                t_c = targets[i : i + chunk_size]
+                logits_c = F.linear(p_c, head_weight)
+                loss_c = F.cross_entropy(logits_c, t_c, reduction="sum")
+                total_loss += loss_c.item()
+                del logits_c
+                
+        return torch.tensor(total_loss / T, dtype=proj_h.dtype, device=proj_h.device)
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        proj_h, head_weight, targets = ctx.saved_tensors
+        chunk_size = ctx.chunk_size
+        T, rank = proj_h.shape
+        
+        grad_proj_h = torch.empty_like(proj_h)
+        grad_weight = torch.zeros_like(head_weight)
+        scale = (grad_output / T).to(dtype=proj_h.dtype)
+        
+        for i in range(0, T, chunk_size):
+            p_c = proj_h[i : i + chunk_size]
+            t_c = targets[i : i + chunk_size]
+            c_len = p_c.shape[0]
+            
+            logits_c = F.linear(p_c, head_weight)
+            probs_c = F.softmax(logits_c.float(), dim=-1).to(dtype=proj_h.dtype)
+            ones = torch.full((c_len, 1), -1.0, dtype=probs_c.dtype, device=probs_c.device)
+            probs_c.scatter_add_(1, t_c.unsqueeze(1), ones)
+            probs_c.mul_(scale)
+            
+            grad_proj_h[i : i + chunk_size] = torch.matmul(probs_c, head_weight)
+            grad_weight.addmm_(probs_c.t(), p_c)
+            del logits_c, probs_c
+            
+        return grad_proj_h, grad_weight, None, None
+
+
 class MultiGranularMoE7BModel(nn.Module):
     def __init__(
         self,
@@ -115,7 +167,7 @@ class MultiGranularMoE7BModel(nn.Module):
         n_layers: int = 24,
         num_experts: int = 10,
         hidden_dim: int = 6144,
-        use_shared_expert: bool = True,
+        use_shared_expert: bool = False,
         shared_dim: int = 2048,
         routing_k: int = 1,
         max_seq_len: int = 8192,
@@ -242,7 +294,7 @@ class MultiGranularMoE7BModel(nn.Module):
             
             # Gradient Checkpointing keeps VRAM at ~800MB instead of 19.7GB!
             if h.requires_grad:
-                h, aux = checkpoint.checkpoint(lf, h, use_reentrant=True)
+                h, aux = checkpoint.checkpoint(lf, h, use_reentrant=False)
             else:
                 h, aux = lf(h)
             
@@ -256,29 +308,18 @@ class MultiGranularMoE7BModel(nn.Module):
         logits = self.head_out(self.head_proj(h))
         return logits, total_aux_loss
 
-    def compute_loss(self, x: torch.Tensor, targets: torch.Tensor, chunk_size: int = 128):
-        """Computes loss with Chunked Cross-Entropy over 262k vocabulary to prevent VRAM spikes."""
+    def compute_loss(self, x: torch.Tensor, targets: torch.Tensor, chunk_size: int = 16):
+        """Computes loss with O(1) Chunked Factorized Cross-Entropy over 20-Bit (1.048.576 Tokens) vocabulary."""
         h, total_aux_loss = self.forward_hidden(x)
         
         h_flat = h.view(-1, self.d_model)
         targets_flat = targets.view(-1)
-        total_tokens = h_flat.shape[0]
         
-        # Pre-project to rank-64 features once ([7168, 64] is only 917 KB in VRAM!)
+        # Pre-project to rank-64 features once ([5120, 64] is only 655 KB in VRAM!)
         proj_h = self.head_proj(h_flat)
         
-        total_ce_loss = 0.0
-        for i in range(0, total_tokens, chunk_size):
-            p_chunk = proj_h[i : i + chunk_size]
-            targets_chunk = targets_flat[i : i + chunk_size]
-            
-            # Project chunk in 128-token slices (only ~67MB VRAM for 262k vocab!)
-            logits_chunk = self.head_out(p_chunk)
-            chunk_ce = F.cross_entropy(logits_chunk, targets_chunk, reduction="sum")
-            total_ce_loss = total_ce_loss + chunk_ce
-            
-        ce_loss = total_ce_loss / max(1, total_tokens)
-        total_loss = ce_loss + 0.01 * (total_aux_loss.float() if isinstance(total_aux_loss, torch.Tensor) else float(total_aux_loss))
+        ce_loss = FactorizedChunkedCrossEntropy.apply(proj_h, self.head_out.weight, targets_flat, chunk_size)
+        total_loss = ce_loss + 0.01 * (total_aux_loss.type_as(ce_loss) if isinstance(total_aux_loss, torch.Tensor) else float(total_aux_loss))
         return total_loss, ce_loss, total_aux_loss
 
 

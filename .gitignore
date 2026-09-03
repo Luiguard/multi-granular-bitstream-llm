@@ -26,3 +26,5 @@ data/
 dashboard_metrics.json
 data/test_scratch/
 result.json
+scratch/
+checkpoints_8b/

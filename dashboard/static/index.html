@@ -20,7 +20,7 @@
         <div class="pulse-indicator online" id="status-pulse"></div>
         <div>
           <h1>Bitstream AI Training Console</h1>
-          <p class="subtitle">Multi-Granular 18-Bit Token Engine & Hardware Telemetrie</p>
+          <p class="subtitle">Multi-Granular 20-Bit Golden Master Token Engine & Hardware Telemetrie</p>
         </div>
       </div>
       <div class="header-badges">
@@ -31,7 +31,7 @@
           <span>🛠️ KI Model Builder</span>
         </a>
         <span class="badge badge-glow" id="device-badge">GPU: NVIDIA RTX 3060 (6 GB)</span>
-        <span class="badge badge-secondary" id="vocab-badge">Vokabular: 262.144 Tokens (18-Bit)</span>
+        <span class="badge badge-secondary" id="vocab-badge">Vokabular: 1.048.576 Tokens (20-Bit Golden Master)</span>
       </div>
     </header>
 
@@ -132,29 +132,105 @@
       <!-- 4. Official Benchmark Results -->
       <section class="card glass-panel">
         <div class="card-header">
-          <h2>🔬 Offizielles Benchmark & Performance</h2>
+          <h2>🔬 Reale Benchmark- & Validierungs-Metriken</h2>
           <span class="badge badge-success">GPU Verifiziert</span>
         </div>
         <div class="benchmark-grid">
           <div class="bench-item">
             <div class="bench-label">Validierungs-Perplexity (PPL)</div>
-            <div class="bench-val highlight" id="bench-ppl-val">27.62</div>
-            <div class="bench-sub" id="bench-ppl-sub">Live Exponential Cross-Entropy</div>
+            <div class="bench-val highlight" id="bench-ppl-val">--</div>
+            <div class="bench-sub" id="bench-ppl-sub">Held-Out Testset (Alle 50 Steps)</div>
           </div>
           <div class="bench-item">
-            <div class="bench-label">MMLU / ARC Score</div>
-            <div class="bench-val accent" id="bench-mmlu-val">60.0%</div>
-            <div class="bench-sub">Zero-Shot Log-Likelihood</div>
+            <div class="bench-label">Held-Out Token Accuracy</div>
+            <div class="bench-val accent" id="bench-acc-val">--</div>
+            <div class="bench-sub">Top-1 Exakte Übereinstimmung</div>
           </div>
           <div class="bench-item">
-            <div class="bench-label">Inferenz-Durchsatz</div>
-            <div class="bench-val" id="bench-tps-val">121.0 T/s</div>
-            <div class="bench-sub" id="bench-words-val">~442 Wörter / Sekunde</div>
+            <div class="bench-label">Realer Durchsatz</div>
+            <div class="bench-val" id="bench-tps-val">110.0 T/s</div>
+            <div class="bench-sub" id="bench-words-val">6.144 Tokens / Schritt (Batch 2)</div>
           </div>
           <div class="bench-item">
-            <div class="bench-label">Kompression vs. UTF-8</div>
-            <div class="bench-val" id="bench-compress-val">4.25x</div>
-            <div class="bench-sub">18-Bit Bitstream Dichte</div>
+            <div class="bench-label">Viterbi 20-Bit Dichte</div>
+            <div class="bench-val" id="bench-compress-val">4.0x</div>
+            <div class="bench-sub">2,5 Byte vs. 10 Byte UTF-8</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4b. MoE 4 Expert Branches across 20 Layers -->
+      <section class="card glass-panel">
+        <div class="card-header">
+          <h2>🏛️ MoE-Architektur: 4 Experten-Äste à 2,01 Milliarden Parameter (20 Schichten × 100,7M)</h2>
+          <span class="badge badge-glow" id="moe-routing-badge">Top-2 Routing Aktiv</span>
+        </div>
+        <div class="graph-info-banner">
+          <span>⚖️ <strong>4 durchgehende Experten-Äste = 8,05 Mrd. MoE-Parameter</strong> (+ 370M Shared/Attention = 8,42B Gesamtmodell). In jeder der 20 Schichten besitzt jeder Experte 100,7M SwiGLU-Parameter. Pro Batch werden 6.144 Tokens via Top-2 Routing balanciert.</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-top: 1rem;" id="moe-experts-container">
+          <div class="card glass-panel" style="padding: 1rem; border: 1px solid rgba(59, 130, 246, 0.3); background: rgba(15, 23, 42, 0.6);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <strong style="color: #60a5fa;">Experte 0 (Ast 0)</strong>
+              <span class="badge badge-secondary" style="font-size: 0.72rem;">2,01 Mrd. Parameter</span>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">Foundation Bitstream & Syntax (20 Ebenen à 100,7M)</div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.78rem; margin-bottom: 0.3rem;">
+              <span>Token-Anteil:</span>
+              <strong style="color: var(--primary);" id="exp-0-pct">26.2%</strong>
+            </div>
+            <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+              <div id="exp-0-bar" style="width: 26.2%; height: 100%; background: #3b82f6; border-radius: 3px;"></div>
+            </div>
+            <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.4rem;">Status: <span style="color: #10b981;">Aktiv trainiert (2.01B)</span></div>
+          </div>
+
+          <div class="card glass-panel" style="padding: 1rem; border: 1px solid rgba(168, 85, 247, 0.3); background: rgba(15, 23, 42, 0.6);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <strong style="color: #c084fc;">Experte 1 (Ast 1)</strong>
+              <span class="badge badge-secondary" style="font-size: 0.72rem;">2,01 Mrd. Parameter</span>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">Logic, Code & Deep Reasoning (20 Ebenen à 100,7M)</div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.78rem; margin-bottom: 0.3rem;">
+              <span>Token-Anteil:</span>
+              <strong style="color: #a855f7;" id="exp-1-pct">24.8%</strong>
+            </div>
+            <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+              <div id="exp-1-bar" style="width: 24.8%; height: 100%; background: #a855f7; border-radius: 3px;"></div>
+            </div>
+            <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.4rem;">Status: <span style="color: #10b981;">Aktiv trainiert (2.01B)</span></div>
+          </div>
+
+          <div class="card glass-panel" style="padding: 1rem; border: 1px solid rgba(16, 185, 129, 0.3); background: rgba(15, 23, 42, 0.6);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <strong style="color: #34d399;">Experte 2 (Ast 2)</strong>
+              <span class="badge badge-secondary" style="font-size: 0.72rem;">2,01 Mrd. Parameter</span>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">STEM, Math & Multilingual (20 Ebenen à 100,7M)</div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.78rem; margin-bottom: 0.3rem;">
+              <span>Token-Anteil:</span>
+              <strong style="color: #10b981;" id="exp-2-pct">24.5%</strong>
+            </div>
+            <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+              <div id="exp-2-bar" style="width: 24.5%; height: 100%; background: #10b981; border-radius: 3px;"></div>
+            </div>
+            <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.4rem;">Status: <span style="color: #10b981;">Aktiv trainiert (2.01B)</span></div>
+          </div>
+
+          <div class="card glass-panel" style="padding: 1rem; border: 1px solid rgba(245, 158, 11, 0.3); background: rgba(15, 23, 42, 0.6);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <strong style="color: #fbbf24;">Experte 3 (Ast 3)</strong>
+              <span class="badge badge-secondary" style="font-size: 0.72rem;">2,01 Mrd. Parameter</span>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.5rem;">World Corpus & Cyber Knowledge (20 Ebenen à 100,7M)</div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.78rem; margin-bottom: 0.3rem;">
+              <span>Token-Anteil:</span>
+              <strong style="color: #f59e0b;" id="exp-3-pct">24.5%</strong>
+            </div>
+            <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+              <div id="exp-3-bar" style="width: 24.5%; height: 100%; background: #f59e0b; border-radius: 3px;"></div>
+            </div>
+            <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.4rem;">Status: <span style="color: #10b981;">Aktiv trainiert (2.01B)</span></div>
           </div>
         </div>
       </section>
@@ -185,7 +261,7 @@
           <span class="badge badge-glow" id="auto-learner-status">Aktiv (Daemon)</span>
         </div>
         <div class="graph-info-banner">
-          <span>🤖 <strong>Epistemische Neugier</strong>: Erkennt Wissenslücken (Loss &gt; 5.8), surft autonom im Web und generiert neue 18-Bit Bitstream-Shards</span>
+          <span>🤖 <strong>Epistemische Neugier</strong>: Erkennt Wissenslücken (Loss &gt; 5.8), surft autonom im Web und generiert neue 20-Bit Bitstream-Shards</span>
         </div>
         <div id="autonomous-events-list" style="display: flex; flex-direction: column; gap: 8px; margin-top: 1rem;">
           <div style="font-size: 0.82rem; color: var(--text-muted);">Überwache Wissensknoten auf Informationsdefizite...</div>

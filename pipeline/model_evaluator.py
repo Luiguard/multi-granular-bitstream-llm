@@ -154,6 +154,7 @@ class ModelEvaluator:
         if was_training:
             model.train()
 
+        torch.cuda.empty_cache()
         return eval_result
 
 

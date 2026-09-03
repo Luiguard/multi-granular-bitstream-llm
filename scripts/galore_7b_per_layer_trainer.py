@@ -5,6 +5,7 @@ import math
 import os
 import random
 import sys
+sys.path.insert(0, "/home/benjamin/Bilder")
 import time
 import json
 from typing import Any, Dict, List, Optional
@@ -120,26 +121,32 @@ def update_30day_dashboard_telemetry(
         pass
 
 def train_30day_world_model():
-    parser = argparse.ArgumentParser(description="7B Extreme Laptop Trainer (GaLore Hooks)")
+    parser = argparse.ArgumentParser(description="8.52B MoE Trainer (20L / 4E / 100.7M pro Experte / 20-Bit Golden Master / 5120 Kontext)")
     parser.add_argument("--batch_size", type=int, default=1)
+    parser.add_argument("--gradient_accumulation_steps", type=int, default=2, help="Effektive Batch-Größe: 2x 5120 = 10.240 Tokens pro Optimizer-Schritt")
+    parser.add_argument("--seq_len", type=int, default=5120, help="5.120 Tokens Kontext/Batch (5x 1024)")
+    parser.add_argument("--galore_rank", type=int, default=64, help="Verdoppelte GaLore-Projektionsgenauigkeit")
     parser.add_argument("--lr_max", type=float, default=2.5e-4)
     parser.add_argument("--lr_min", type=float, default=2.0e-5)
     parser.add_argument("--warmup_steps", type=int, default=1000)
-    parser.add_argument("--checkpoint_dir", type=str, default="/home/benjamin/Bilder/checkpoints")
-    parser.add_argument("--save_interval", type=int, default=10)
+    parser.add_argument("--checkpoint_dir", type=str, default="/home/benjamin/Bilder/checkpoints_8b")
+    parser.add_argument("--save_interval", type=int, default=25, help="Speicher-Intervall (25 Steps = ~25 Min, minimiert SSD-I/O)")
     parser.add_argument("--eval_interval", type=int, default=50)
     parser.add_argument("--enable_night_schedule", action="store_true", default=True, help="Pausiert GPU-Training zwischen 21:00 und 09:00 Uhr")
     parser.add_argument("--night_start_hour", type=int, default=21, help="Beginn der Nachtruhe (Stunde)")
     parser.add_argument("--night_end_hour", type=int, default=9, help="Ende der Nachtruhe (Stunde)")
     parser.add_argument("--test_quiet_minutes", type=int, default=0, help="Test-Ruhemodus für X Minuten aktivieren")
+    parser.add_argument("--max_steps", type=int, default=0, help="Maximale Trainingsschritte (0 = unendlich)")
     args = parser.parse_args()
     device = torch.device("cuda")
     os.makedirs(args.checkpoint_dir, exist_ok=True)
 
-    vocab_file = "/home/benjamin/Bilder/data/vocab_262k.json"
-    if not os.path.exists(vocab_file):
-        vocab_file = "/home/benjamin/Bilder/data/vocab_65k.json"
-    vocab = MultiGranularVocabulary.load_json(vocab_file)
+    if os.path.exists(MultiGranularVocabulary.CANONICAL_20BIT_BIN_PATH):
+        vocab = MultiGranularVocabulary.load_canonical()
+    elif os.path.exists("/home/benjamin/Bilder/data/vocab_262k.json"):
+        vocab = MultiGranularVocabulary.load_json("/home/benjamin/Bilder/data/vocab_262k.json")
+    else:
+        vocab = MultiGranularVocabulary.load_json("/home/benjamin/Bilder/data/vocab_65k.json")
 
     print("  - Initialisiere Dynamischen Trainingsgraphen (Knowledge Curriculum DAG)...", flush=True)
     training_graph = build_default_training_graph("/home/benjamin/Bilder")
@@ -151,7 +158,7 @@ def train_30day_world_model():
     print("  - Initialisiere Held-Out Validierungs-Evaluator...", flush=True)
     evaluator = ModelEvaluator()
 
-    print("  - Modell-Architektur: 7B Sparse Mixture of Experts (JIT Layer Offloading / GaLore Hooks)", flush=True)
+    print(f"  - Modell-Architektur: 8.42B MoE (Option B: 20 Schichten, 4 Experten à 100.7M, {args.seq_len} Kontext, GaLore r={args.galore_rank})", flush=True)
     
     # -------------------------------------------------------------------------
     # CHECKPOINT RESUME & PRE-TRAINED WARM-START (ZERO-RAM META INIT & MMAP)
@@ -162,22 +169,24 @@ def train_30day_world_model():
     latest_eval_metrics = None
     current_lr: float = args.lr_min
     
-    moe_latest_ckpt = os.path.join(args.checkpoint_dir, "7b_checkpoint_latest.pt")
+    moe_latest_ckpt = os.path.join(args.checkpoint_dir, "8b_checkpoint_latest.pt")
     base_latest_ckpt = os.path.join(args.checkpoint_dir, "checkpoint_latest.pt")
     
     if os.path.exists(moe_latest_ckpt):
-        print(f"  🔄 Initialisiere 7B Meta-Modell & lade Checkpoint via Zero-RAM mmap: {moe_latest_ckpt}...", flush=True)
+        print(f"  🔄 Initialisiere 8.42B Meta-Modell & lade Checkpoint via Zero-RAM mmap: {moe_latest_ckpt}...", flush=True)
         with torch.device("meta"):
             model = MultiGranularMoE7BModel(
                 vocab_size=vocab.size,
                 rank=64,
                 d_model=2048,
-                n_layers=24,
-                num_experts=12,
-                hidden_dim=4096,
-                max_seq_len=7168,
+                n_layers=20,
+                num_experts=4,
+                hidden_dim=16384,
+                use_shared_expert=False,
+                routing_k=2,
+                max_seq_len=args.seq_len,
             )
-        model.rope = RotaryEmbedding(dim=64, max_seq_len=7168)
+        model.rope = RotaryEmbedding(dim=64, max_seq_len=args.seq_len)
         
         try:
             ckpt = torch.load(moe_latest_ckpt, map_location="cpu", mmap=True, weights_only=False)
@@ -186,7 +195,7 @@ def train_30day_world_model():
             if isinstance(ckpt, dict):
                 step = int(ckpt.get("step", 0))
                 raw_tokens = ckpt.get("tokens_processed")
-                tokens_processed = int(raw_tokens) if raw_tokens is not None else (step * 7168)
+                tokens_processed = int(raw_tokens) if raw_tokens is not None else (step * args.seq_len * args.gradient_accumulation_steps)
                 loss_history = ckpt.get("loss_history", [])
                 latest_eval_metrics = ckpt.get("latest_eval_metrics")
                 if "training_graph_state" in ckpt:
@@ -211,7 +220,7 @@ def train_30day_world_model():
                     training_graph.update_gating()
             del ckpt, sd
             gc.collect()
-            print(f"  ✅ 7B Checkpoint via Zero-RAM mmap erfolgreich geladen! Setze fort bei Step {step:,} ({tokens_processed:,} Tokens).", flush=True)
+            print(f"  ✅ 8.42B Checkpoint via Zero-RAM mmap erfolgreich geladen! Setze fort bei Step {step:,} ({tokens_processed:,} Tokens).", flush=True)
         except Exception as e:
             print(f"  ⚠️ Warnung beim Laden von {moe_latest_ckpt}: {e}", flush=True)
     else:
@@ -221,10 +230,12 @@ def train_30day_world_model():
             vocab_size=vocab.size,
             rank=64,
             d_model=2048,
-            n_layers=24,
-            num_experts=12,
-            hidden_dim=4096,
-            max_seq_len=7168,
+            n_layers=20,
+            num_experts=4,
+            hidden_dim=16384,
+            use_shared_expert=False,
+            routing_k=2,
+            max_seq_len=args.seq_len,
         )
         torch.set_default_dtype(old_dtype)
         
@@ -242,69 +253,56 @@ def train_30day_world_model():
             except Exception as e:
                 print(f"  ⚠️ Warnung beim Warm-Start: {e}", flush=True)
 
-    # JIT LAYER OFFLOADING
+    # JIT LAYER OFFLOADING WRAPPER FUER EXPERTEN
     class OffloadedLinear(torch.nn.Module):
         def __init__(self, linear_layer):
             super().__init__()
             self.in_features = linear_layer.in_features
             self.out_features = linear_layer.out_features
-            self.weight = torch.nn.Parameter(linear_layer.weight.data.to(torch.bfloat16).pin_memory(), requires_grad=True)
-            self.bias = torch.nn.Parameter(linear_layer.bias.data.to(torch.bfloat16).pin_memory(), requires_grad=True) if linear_layer.bias is not None else None
-            
+            # Verwende unpinned Speicher: Erlaubt ZRAM-Swapping & Linux Page Cache (32GB Cache/Swap nutzbar)
+            self.weight = torch.nn.Parameter(linear_layer.weight.data.to(torch.bfloat16), requires_grad=True)
+            if linear_layer.bias is not None:
+                self.bias = torch.nn.Parameter(linear_layer.bias.data.to(torch.bfloat16), requires_grad=True)
+            else:
+                self.bias = None
+                
         def forward(self, x):
             w_gpu = self.weight.to(x.device, non_blocking=True)
             b_gpu = self.bias.to(x.device, non_blocking=True) if self.bias is not None else None
             return F.linear(x, w_gpu, b_gpu)
 
-    class OffloadedEmbedding(torch.nn.Module):
-        def __init__(self, emb_layer):
-            super().__init__()
-            self.num_embeddings = emb_layer.num_embeddings
-            self.embedding_dim = emb_layer.embedding_dim
-            self.weight = torch.nn.Parameter(emb_layer.weight.data.to(torch.bfloat16).pin_memory(), requires_grad=True)
-            
-        def forward(self, x):
-            w_gpu = self.weight.to(x.device, non_blocking=True)
-            return F.embedding(x, w_gpu)
+    # FEATURE 1: Attention, Norms, Router & RoPE DAUERHAFT im VRAM verankern (~318 MB)
+    print("  - Verankere Attention, LayerNorms & Router dauerhaft im VRAM (~318 MB)...", flush=True)
+    model.attn_layers.to(device)
+    model.norms1.to(device)
+    model.norms2.to(device)
+    model.norm_final.to(device)
+    model.rope.to(device)
+    model.head_proj.to(device)
+    model.head_out.to(device)
+    model.E_proj.to(device)
+    model.E_vocab.to(device)
+    for ml in model.moe_layers:
+        ml.router.to(device)
+        if ml.shared_expert is not None:
+            ml.shared_expert.to(device)
+        for exp in ml.experts:
+            for child_name, child in exp.named_children():
+                if isinstance(child, torch.nn.Linear):
+                    setattr(exp, child_name, OffloadedLinear(child))
 
-    class OffloadedLayerNorm(torch.nn.Module):
-        def __init__(self, norm_layer):
-            super().__init__()
-            self.normalized_shape = norm_layer.normalized_shape
-            self.weight = torch.nn.Parameter(norm_layer.weight.data.to(torch.bfloat16).pin_memory(), requires_grad=True) if norm_layer.weight is not None else None
-            self.bias = torch.nn.Parameter(norm_layer.bias.data.to(torch.bfloat16).pin_memory(), requires_grad=True) if norm_layer.bias is not None else None
-            self.eps = norm_layer.eps
-            
-        def forward(self, x):
-            w_gpu = self.weight.to(x.device, non_blocking=True) if self.weight is not None else None
-            b_gpu = self.bias.to(x.device, non_blocking=True) if self.bias is not None else None
-            return F.layer_norm(x, self.normalized_shape, w_gpu, b_gpu, self.eps)
+    print(f"  - Initialisiere GaLore Optimizer mit verdoppeltem Rang {args.galore_rank}...", flush=True)
+    optimizer = GaLoreAdamW(model.parameters(), lr=args.lr_max, weight_decay=0.01, rank=args.galore_rank)
 
-    def convert_to_offloaded(module):
-        for name, child in module.named_children():
-            if name in ["head_proj", "head_out", "E_proj"]:
-                child.to(device)
-            elif isinstance(child, torch.nn.Linear):
-                setattr(module, name, OffloadedLinear(child))
-            elif isinstance(child, torch.nn.Embedding):
-                setattr(module, name, OffloadedEmbedding(child))
-            elif isinstance(child, torch.nn.LayerNorm):
-                setattr(module, name, OffloadedLayerNorm(child))
-            else:
-                convert_to_offloaded(child)
-
-    print("  - Wende JIT Offloading Wrappers an (FSDP ersetzt)...", flush=True)
-    convert_to_offloaded(model)
-
-    optimizer = GaLoreAdamW(model.parameters(), lr=args.lr_max, weight_decay=0.01, rank=32)
-
-    # PER-LAYER GALORE HOOKS MIT GRADIENT CLIPPING (MAX NORM = 1.0)
+    # PER-LAYER GALORE HOOKS MIT GRADIENT ACCUMULATION (MAX NORM = 1.0)
+    accum_counter = 0
     def make_galore_hook(p, opt):
-        def hook(*args):
-            if p.grad is not None:
-                torch.nn.utils.clip_grad_norm_([p], max_norm=1.0)
-            opt.step_param(p)
-            p.grad = None  # FREE RAM INSTANTLY
+        def hook(*args_hook):
+            if (accum_counter + 1) % args.gradient_accumulation_steps == 0:
+                if p.grad is not None:
+                    torch.nn.utils.clip_grad_norm_([p], max_norm=1.0)
+                opt.step_param(p)
+                p.grad = None  # FREE RAM INSTANTLY
         return hook
 
     for p in model.parameters():
@@ -316,11 +314,15 @@ def train_30day_world_model():
     status_file = "/home/benjamin/Bilder/data/training_status.json"
     test_quiet_until = (time.time() + args.test_quiet_minutes * 60) if args.test_quiet_minutes > 0 else None
 
-    print("\n🚀 Starte 7B Dauerlauf mit Dynamischem Trainingsgraphen (7168 Kontext) & GaLore...", flush=True)
+    print(f"\n🚀 Starte 8.42B MoE Dauerlauf (Option B) mit {args.seq_len} Kontext & GaLore r={args.galore_rank}...", flush=True)
+    print(f"📦 Gradient Accumulation: {args.gradient_accumulation_steps} Steps (effektiv {args.batch_size * args.seq_len * args.gradient_accumulation_steps:,} Tokens pro Gewichtsupdate)", flush=True)
     if args.enable_night_schedule:
         print(f"🌙 Nachtruhe-Automatik aktiv: Täglich von {args.night_start_hour}:00 bis {args.night_end_hour}:00 Uhr (GPU-Standby & 0% GPU-Last).", flush=True)
     if test_quiet_until:
         print(f"🔇 20-Minuten Akustik-Test aktiviert: GPU pausiert sofort bis {time.strftime('%H:%M:%S', time.localtime(test_quiet_until))}.", flush=True)
+
+    step_start_time = time.time()
+    accum_losses = []
 
     while step < 1000000:
         # Prüfe auf Nachtruhe (21:00 - 09:00 Uhr) oder temporären Akustik-Test
@@ -364,109 +366,120 @@ def train_30day_world_model():
                     eval_metrics=latest_eval_metrics,
                 )
                 time.sleep(10)
-
-        step_start_time = time.time()
         
-        # Dynamisches Sampling über den Wissensgraphen mit 7168 Tokens
-        x, y, active_node_id = training_graph.sample_batch(batch_size=args.batch_size, seq_len=7168)
-        x, y = x.to(device), y.to(device)
+        # Dynamisches Sampling über den Wissensgraphen mit seq_len Tokens
+        x, y, active_node_id = training_graph.sample_batch(batch_size=args.batch_size, seq_len=args.seq_len)
+        x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
         active_node = training_graph.nodes[active_node_id]
         
         torch.cuda.empty_cache()
-        loss, ce_loss, aux_loss = model.compute_loss(x, y, chunk_size=128)
+        loss, ce_loss, aux_loss = model.compute_loss(x, y, chunk_size=16)
         
-        # Backward pass automatically fires the GaLore hooks per-layer!
-        loss.backward()
+        # Gradient Accumulation: Skaliere Loss
+        loss_scaled = loss / args.gradient_accumulation_steps
+        loss_scaled.backward()
         
-        # Free CUDA cache heavily to prevent VRAM fragmentation
         torch.cuda.empty_cache()
-        
         loss_val = loss.item()
+        accum_losses.append(loss_val)
+        accum_counter += 1
         
-        # Melde Loss an den Wissensgraphen mit aktuellem Step (Anti-Thrashing Cooldown)
-        training_graph.report_batch_loss(active_node_id, loss_val, current_step=step)
-        
-        # Linear Warmup (1.000 Steps) gefolgt von sanftem Cosine Decay
-        if step < args.warmup_steps:
-            current_lr = args.lr_min + (args.lr_max - args.lr_min) * (step / max(1, args.warmup_steps))
-        else:
-            progress = (step - args.warmup_steps) / max(1, 1000000 - args.warmup_steps)
-            current_lr = args.lr_min + 0.5 * (args.lr_max - args.lr_min) * (1.0 + math.cos(math.pi * progress))
-
-        for pg in optimizer.param_groups:
-            pg["lr"] = current_lr
-
-        tokens_processed += args.batch_size * 7168
-        loss_history.append(loss_val)
-        
-        step_now = time.time()
-        step_duration = step_now - step_start_time
-        instant_tps = (args.batch_size * 7168) / max(0.05, step_duration)
-        
-        # Periodische Held-Out Validierung (alle 50 Steps)
-        if step > 0 and step % args.eval_interval == 0:
-            eval_res = evaluator.evaluate_model(model, device, num_batches=4, seq_len=512, step=step)
-            latest_eval_metrics = eval_res
-            print(f"  📊 [HELD-OUT EVALUATION · Step {step:06d}] Val-Loss: {eval_res['val_loss']:.4f} | Perplexität (PPL): {eval_res['perplexity']:.1f} | Acc: {eval_res['accuracy_pct']}%", flush=True)
-
-        # Schreibe JEDEN Step live in Konsole und Dashboard mit Graph-Knoten Info
-        node_tag = f"{active_node.name[:18]}"
-        print(f"  [7B MoE · Step {step:06d}] [{node_tag:<18}] Loss: {loss_val:.4f} (Avg: {active_node.moving_loss:.2f}) | TPS: {int(instant_tps)} | Dauer: {step_duration:.1f}s", flush=True)
-        
-        graph_telemetry = training_graph.get_telemetry_state()
-        live_shards_count = sum(n["total_shards"] for n in graph_telemetry["nodes"])
-        
-        update_30day_dashboard_telemetry(
-            status_file=status_file,
-            day_fraction=step / 1000000,
-            total_days=30.0,
-            step=step,
-            total_steps=1000000,
-            current_loss=loss_val,
-            loss_history=loss_history,
-            tokens_processed=tokens_processed,
-            tokens_per_sec=instant_tps,
-            shards_count=live_shards_count,
-            current_lr=current_lr,
-            graph_state=graph_telemetry,
-            active_node_name=active_node.name,
-            eval_metrics=latest_eval_metrics,
-        )
-
-        if step > 0 and step % args.save_interval == 0:
-            os.makedirs(args.checkpoint_dir, exist_ok=True)
-            ckpt_data = {
-                "step": step,
-                "tokens_processed": tokens_processed,
-                "loss_history": loss_history[-100:],
-                "training_graph_state": training_graph.get_telemetry_state(),
-                "latest_eval_metrics": latest_eval_metrics,
-                "model_state_dict": model.state_dict(),
-                "rng_states": {
-                    "torch": torch.get_rng_state(),
-                    "cuda": torch.cuda.get_rng_state() if torch.cuda.is_available() else None,
-                    "random": random.getstate(),
-                    "numpy": np.random.get_state()
-                }
-            }
-            latest_path = os.path.join(args.checkpoint_dir, "7b_checkpoint_latest.pt")
-            temp_path = os.path.join(args.checkpoint_dir, "7b_checkpoint_temp.pt")
+        # Wenn Accumulation-Zyklus vollendet ist: Optimizer-Schritt & Telemetrie
+        if accum_counter % args.gradient_accumulation_steps == 0:
+            step += 1
+            mean_loss = sum(accum_losses) / len(accum_losses)
+            accum_losses.clear()
             
-            # Atomarer Write: Verhindert beschädigte Dateien bei Unterbrechung
-            torch.save(ckpt_data, temp_path)
-            os.replace(temp_path, latest_path)
+            # Melde Loss an den Wissensgraphen mit aktuellem Step (Anti-Thrashing Cooldown)
+            training_graph.report_batch_loss(active_node_id, mean_loss, current_step=step)
+            
+            # Linear Warmup (1.000 Steps) gefolgt von sanftem Cosine Decay
+            if step < args.warmup_steps:
+                current_lr = args.lr_min + (args.lr_max - args.lr_min) * (step / max(1, args.warmup_steps))
+            else:
+                progress = (step - args.warmup_steps) / max(1, 1000000 - args.warmup_steps)
+                current_lr = args.lr_min + 0.5 * (args.lr_max - args.lr_min) * (1.0 + math.cos(math.pi * progress))
 
-            # Nur alle 10 Schritte einen benannten Checkpoint anlegen und ältere aufräumen
-            if step % (args.save_interval * 2) == 0 or step % 500 == 0:
-                ckpt_path = os.path.join(args.checkpoint_dir, f"7b_checkpoint_step_{step}.pt")
+            for pg in optimizer.param_groups:
+                pg["lr"] = current_lr
+
+            effective_tokens = args.batch_size * args.seq_len * args.gradient_accumulation_steps
+            tokens_processed += effective_tokens
+            loss_history.append(mean_loss)
+            
+            step_now = time.time()
+            step_duration = step_now - step_start_time
+            instant_tps = effective_tokens / max(0.05, step_duration)
+            
+            # Periodische Held-Out Validierung (alle 50 Steps)
+            if step > 0 and step % args.eval_interval == 0:
+                eval_res = evaluator.evaluate_model(model, device, num_batches=4, seq_len=512, step=step)
+                latest_eval_metrics = eval_res
+                print(f"  📊 [HELD-OUT EVALUATION · Step {step:06d}] Val-Loss: {eval_res['val_loss']:.4f} | Perplexität (PPL): {eval_res['perplexity']:.1f} | Acc: {eval_res['accuracy_pct']}%", flush=True)
+
+            # Schreibe JEDEN Step live in Konsole und Dashboard mit Graph-Knoten Info
+            node_tag = f"{active_node.name[:18]}"
+            print(f"  [8.4B MoE · Step {step:06d}] [{node_tag:<18}] Loss: {mean_loss:.4f} (Avg: {active_node.moving_loss:.2f}) | TPS: {int(instant_tps)} | Dauer: {step_duration:.1f}s", flush=True)
+            
+            graph_telemetry = training_graph.get_telemetry_state()
+            live_shards_count = sum(n["total_shards"] for n in graph_telemetry["nodes"])
+            
+            update_30day_dashboard_telemetry(
+                status_file=status_file,
+                day_fraction=step / 1000000,
+                total_days=30.0,
+                step=step,
+                total_steps=1000000,
+                current_loss=mean_loss,
+                loss_history=loss_history,
+                tokens_processed=tokens_processed,
+                tokens_per_sec=instant_tps,
+                shards_count=live_shards_count,
+                current_lr=current_lr,
+                graph_state=graph_telemetry,
+                active_node_name=active_node.name,
+                eval_metrics=latest_eval_metrics,
+            )
+
+
+            if step > 0 and step % args.save_interval == 0:
+                os.makedirs(args.checkpoint_dir, exist_ok=True)
+                ckpt_data = {
+                    "step": step,
+                    "tokens_processed": tokens_processed,
+                    "loss_history": loss_history[-100:],
+                    "training_graph_state": training_graph.get_telemetry_state(),
+                    "latest_eval_metrics": latest_eval_metrics,
+                    "model_state_dict": model.state_dict(),
+                    "rng_states": {
+                        "torch": torch.get_rng_state(),
+                        "cuda": torch.cuda.get_rng_state() if torch.cuda.is_available() else None,
+                        "random": random.getstate(),
+                        "numpy": np.random.get_state()
+                    }
+                }
+                latest_path = os.path.join(args.checkpoint_dir, "8b_checkpoint_latest.pt")
+                temp_path = os.path.join(args.checkpoint_dir, "8b_checkpoint_temp.pt")
+                
+                # Atomarer Write: Verhindert beschädigte Dateien bei Unterbrechung
+                torch.save(ckpt_data, temp_path)
+                os.replace(temp_path, latest_path)
+
+                # Checkpoint benennen via 0-ms Hardlink (spart 16,6 GB SSD-Schreiblast!)
+                ckpt_path = os.path.join(args.checkpoint_dir, f"8b_checkpoint_step_{step}.pt")
                 try:
-                    shutil.copyfile(latest_path, ckpt_path)
+                    if os.path.exists(ckpt_path):
+                        os.remove(ckpt_path)
+                    os.link(latest_path, ckpt_path)
                 except Exception:
-                    pass
+                    try:
+                        shutil.copyfile(latest_path, ckpt_path)
+                    except Exception:
+                        pass
 
                 # Checkpoint Retention: Behalte Meilensteine (alle 500 Steps) + letzte 3 Step-Checkpoints
                 try:
-                    all_step_ckpts = sorted(glob.glob(os.path.join(args.checkpoint_dir, "7b_checkpoint_step_*.pt")),
+                    all_step_ckpts = sorted(glob.glob(os.path.join(args.checkpoint_dir, "8b_checkpoint_step_*.pt")),
                                             key=lambda p: int(p.split("_step_")[-1].replace(".pt", "")) if "_step_" in p else 0)
                     if len(all_step_ckpts) > 3:
                         for old_ckpt in all_step_ckpts[:-3]:
@@ -479,11 +492,25 @@ def train_30day_world_model():
                 except Exception:
                     pass
 
-            del ckpt_data
-            gc.collect()
-            print(f"  💾 Checkpoint atomar gesichert: Step {step} ({tokens_processed:,} Tokens · Wissensgraph & Gewichte gesichert)", flush=True)
+                del ckpt_data
+                gc.collect()
+                print(f"  💾 Checkpoint atomar gesichert: Step {step} ({tokens_processed:,} Tokens · Wissensgraph & Gewichte gesichert)", flush=True)
 
-        step += 1
+            # Regelmäßige Speicher-Defragmentierung & glibc Heap-Freigabe an Linux Kernel
+            if step % 10 == 0:
+                gc.collect()
+                torch.cuda.empty_cache()
+                try:
+                    import ctypes
+                    ctypes.CDLL("libc.so.6").malloc_trim(0)
+                except Exception:
+                    pass
+
+            if args.max_steps > 0 and step >= args.max_steps:
+                print(f"🏁 Zielschritte erreicht ({step}/{args.max_steps}). Beende Trainer.", flush=True)
+                break
+
+            step_start_time = time.time()
 
 if __name__ == "__main__":
     train_30day_world_model()
