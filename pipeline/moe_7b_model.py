@@ -113,49 +113,70 @@ class SparseMoELayer16(nn.Module):
 
 class FactorizedChunkedCrossEntropy(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, proj_h: torch.Tensor, head_weight: torch.Tensor, targets: torch.Tensor, chunk_size: int = 16):
+    def forward(ctx, proj_h: torch.Tensor, head_weight: torch.Tensor, targets: torch.Tensor, chunk_size: int = 16, ignore_index: int = -100):
         T, rank = proj_h.shape
         ctx.save_for_backward(proj_h, head_weight, targets)
         ctx.chunk_size = chunk_size
-        
+        ctx.ignore_index = ignore_index
+
+        valid_count = (targets != ignore_index).sum().item()
+        ctx.valid_count = max(1, valid_count)
+
+        if valid_count == 0:
+            return torch.tensor(0.0, dtype=proj_h.dtype, device=proj_h.device)
+
         total_loss = 0.0
         with torch.no_grad():
             for i in range(0, T, chunk_size):
                 p_c = proj_h[i : i + chunk_size]
                 t_c = targets[i : i + chunk_size]
+                if (t_c == ignore_index).all():
+                    continue
                 logits_c = F.linear(p_c, head_weight)
-                loss_c = F.cross_entropy(logits_c, t_c, reduction="sum")
+                loss_c = F.cross_entropy(logits_c, t_c, ignore_index=ignore_index, reduction="sum")
                 total_loss += loss_c.item()
                 del logits_c
-                
-        return torch.tensor(total_loss / T, dtype=proj_h.dtype, device=proj_h.device)
+
+        return torch.tensor(total_loss / ctx.valid_count, dtype=proj_h.dtype, device=proj_h.device)
 
     @staticmethod
-    def backward(ctx, grad_output):
+    def backward(ctx: Any, *grad_outputs: Any) -> Any:
+        grad_output = grad_outputs[0]
         proj_h, head_weight, targets = ctx.saved_tensors
         chunk_size = ctx.chunk_size
+        ignore_index = ctx.ignore_index
+        valid_count = ctx.valid_count
         T, rank = proj_h.shape
-        
-        grad_proj_h = torch.empty_like(proj_h)
+
+        grad_proj_h = torch.zeros_like(proj_h)
         grad_weight = torch.zeros_like(head_weight)
-        scale = (grad_output / T).to(dtype=proj_h.dtype)
-        
+        scale = (grad_output / valid_count).to(dtype=proj_h.dtype)
+
         for i in range(0, T, chunk_size):
             p_c = proj_h[i : i + chunk_size]
             t_c = targets[i : i + chunk_size]
             c_len = p_c.shape[0]
-            
+
+            valid_mask = (t_c != ignore_index)
+            if not valid_mask.any():
+                continue
+
             logits_c = F.linear(p_c, head_weight)
             probs_c = F.softmax(logits_c.float(), dim=-1).to(dtype=proj_h.dtype)
+
+            t_c_safe = torch.where(valid_mask, t_c, torch.zeros_like(t_c))
             ones = torch.full((c_len, 1), -1.0, dtype=probs_c.dtype, device=probs_c.device)
-            probs_c.scatter_add_(1, t_c.unsqueeze(1), ones)
+            ones = torch.where(valid_mask.unsqueeze(1), ones, torch.zeros_like(ones))
+
+            probs_c.scatter_add_(1, t_c_safe.unsqueeze(1), ones)
+            probs_c[~valid_mask] = 0.0
             probs_c.mul_(scale)
-            
+
             grad_proj_h[i : i + chunk_size] = torch.matmul(probs_c, head_weight)
             grad_weight.addmm_(probs_c.t(), p_c)
             del logits_c, probs_c
-            
-        return grad_proj_h, grad_weight, None, None
+
+        return grad_proj_h, grad_weight, None, None, None
 
 
 class MultiGranularMoE7BModel(nn.Module):
@@ -308,19 +329,51 @@ class MultiGranularMoE7BModel(nn.Module):
         logits = self.head_out(self.head_proj(h))
         return logits, total_aux_loss
 
-    def compute_loss(self, x: torch.Tensor, targets: torch.Tensor, chunk_size: int = 16):
-        """Computes loss with O(1) Chunked Factorized Cross-Entropy over 20-Bit (1.048.576 Tokens) vocabulary."""
-        h, total_aux_loss = self.forward_hidden(x)
+    def compute_loss(self, x: torch.Tensor, targets: torch.Tensor, chunk_size: int = 16, ignore_index: int = -100):
+        B, T = x.shape
+        compact = self.E_vocab(x)
+        h = self.E_proj(compact)
         
-        h_flat = h.view(-1, self.d_model)
-        targets_flat = targets.view(-1)
+        total_aux_loss = 0.0
+        for norm1, attn, norm2, moe in zip(self.norms1, self.attn_layers, self.norms2, self.moe_layers):
+            normed_h = norm1(h)
+            h = h + attn(normed_h, rope=self.rope)
+            
+            normed_h2 = norm2(h)
+            moe_out, aux = moe(normed_h2)
+            h = moe_out
+            total_aux_loss += aux
+            
+        h = self.norm_final(h)
+        proj_h = self.head_proj(h).view(B * T, -1)
+        targets_flat = targets.view(B * T)
         
-        # Pre-project to rank-64 features once ([5120, 64] is only 655 KB in VRAM!)
-        proj_h = self.head_proj(h_flat)
-        
-        ce_loss = FactorizedChunkedCrossEntropy.apply(proj_h, self.head_out.weight, targets_flat, chunk_size)
+        ce_loss = FactorizedChunkedCrossEntropy.apply(proj_h, self.head_out.weight, targets_flat, chunk_size, ignore_index)
         total_loss = ce_loss + 0.01 * (total_aux_loss.type_as(ce_loss) if isinstance(total_aux_loss, torch.Tensor) else float(total_aux_loss))
         return total_loss, ce_loss, total_aux_loss
+
+    @torch.no_grad()
+    def generate_step(self, x: torch.Tensor, kv_caches: Optional[List[Tuple[torch.Tensor, torch.Tensor]]] = None):
+        """Generates one token step using O(1) Static / Compressed KV-Cache."""
+        B, T = x.shape
+        compact = self.E_vocab(x)
+        h = self.E_proj(compact)
+
+        new_caches = []
+        for i, (norm1, attn, norm2, moe) in enumerate(zip(self.norms1, self.attn_layers, self.norms2, self.moe_layers)):
+            layer_cache = kv_caches[i] if kv_caches is not None and i < len(kv_caches) else None
+            normed_h = norm1(h)
+            attn_out, new_c = attn(normed_h, rope=self.rope, kv_cache=layer_cache, use_cache=True)
+            h = h + attn_out
+            new_caches.append(new_c)
+
+            normed_h2 = norm2(h)
+            moe_out, _ = moe(normed_h2)
+            h = moe_out
+
+        h = self.norm_final(h)
+        logits = self.head_out(self.head_proj(h[:, -1:, :]))
+        return logits.squeeze(1), new_caches
 
 
 def calculate_7b_parameters():

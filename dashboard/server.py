@@ -717,10 +717,15 @@ class DashboardHandler(BaseHTTPRequestHandler):
             model = get_inference_model()
             load_latest_moe_checkpoint_if_available(model)
             with torch.no_grad():
+                kv_caches = None
+                curr_input = torch.tensor([input_ids[-128:]], dtype=torch.long, device=DEVICE)
+
                 for step_idx in range(max_tokens):
-                    inp_tensor = torch.tensor([input_ids[-128:]], dtype=torch.long, device=DEVICE)
-                    out = model(inp_tensor)
-                    logits = (out[0] if isinstance(out, tuple) else out)[0, -1, :]
+                    if hasattr(model, "generate_step"):
+                        logits, kv_caches = model.generate_step(curr_input, kv_caches=kv_caches)
+                    else:
+                        out = model(curr_input)
+                        logits = (out[0] if isinstance(out, tuple) else out)[0, -1, :]
 
                     for prev_token in set(input_ids[-24:]):
                         if prev_token < logits.shape[0]:
@@ -743,6 +748,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                     probs = F.softmax(logits, dim=-1)
                     next_token = int(torch.multinomial(probs, num_samples=1).item())
                     input_ids.append(next_token)
+                    curr_input = torch.tensor([[next_token]], dtype=torch.long, device=DEVICE)
 
                     token_text = TOKENIZER.decode([next_token])
                     generated_str += token_text

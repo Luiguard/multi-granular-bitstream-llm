@@ -51,7 +51,13 @@ class MultiHeadLatentAttention(nn.Module):
         # Output Projection
         self.out_proj = nn.Linear(num_heads * head_dim, d_model, bias=False)
 
-    def forward(self, x: torch.Tensor, rope: Optional[RotaryEmbedding] = None) -> torch.Tensor:
+    def forward(
+        self,
+        x: torch.Tensor,
+        rope: Optional[RotaryEmbedding] = None,
+        kv_cache: Optional[Tuple[torch.Tensor, torch.Tensor]] = None,
+        use_cache: bool = False,
+    ):
         B, T, C = x.shape
 
         # 1. Query path
@@ -65,11 +71,28 @@ class MultiHeadLatentAttention(nn.Module):
 
         # 3. Apply RoPE if provided
         if rope is not None:
-            q, k = rope(q.transpose(1, 2), k.transpose(1, 2), T)
-            q = q.transpose(1, 2)
-            k = k.transpose(1, 2)
+            past_len = kv_cache[0].shape[2] if kv_cache is not None else 0
+            total_seq = T + past_len
+            q_rot, k_rot = rope(q.transpose(1, 2), k.transpose(1, 2), total_seq)
+            q = q_rot.transpose(1, 2)
+            k = k_rot.transpose(1, 2)
+            if past_len > 0:
+                q = q[:, :, -T:, :]
+                k = k[:, :, -T:, :]
 
-        # 4. Native FlashAttention / SDPA
-        out = F.scaled_dot_product_attention(q, k, v, is_causal=True)
+        # 4. Update KV Cache
+        if kv_cache is not None:
+            k = torch.cat([kv_cache[0], k], dim=2)
+            v = torch.cat([kv_cache[1], v], dim=2)
+        
+        new_kv_cache = (k, v) if use_cache else None
+
+        # 5. Native FlashAttention / SDPA
+        is_causal = (T > 1)
+        out = F.scaled_dot_product_attention(q, k, v, is_causal=is_causal)
         out = out.transpose(1, 2).contiguous().view(B, T, self.num_heads * self.head_dim)
-        return self.out_proj(out)
+        projected = self.out_proj(out)
+
+        if use_cache:
+            return projected, new_kv_cache
+        return projected

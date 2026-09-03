@@ -144,6 +144,7 @@ class GaLoreAdamW(Optimizer):
         weight_decay: float = 0.01,
         rank: int = 64,
         update_interval: int = 200,
+        grad_clip_norm: float = 1.0,
     ):
         defaults = dict(
             lr=lr,
@@ -152,6 +153,7 @@ class GaLoreAdamW(Optimizer):
             weight_decay=weight_decay,
             rank=rank,
             update_interval=update_interval,
+            grad_clip_norm=grad_clip_norm,
         )
         super().__init__(params, defaults)
         self.projectors = {}
@@ -186,6 +188,13 @@ class GaLoreAdamW(Optimizer):
                 # CRITICAL: Skip entirely if gradient is NaN/Inf
                 if torch.isnan(grad).any() or torch.isinf(grad).any():
                     continue
+
+                # Per-Tensor Adaptive Gradient Clipping
+                grad_clip_norm = group.get("grad_clip_norm", 1.0)
+                if grad_clip_norm is not None and grad_clip_norm > 0:
+                    g_norm = grad.norm(2)
+                    if g_norm > grad_clip_norm:
+                        grad = grad * (grad_clip_norm / (g_norm + 1e-6))
 
                 state = self.state[p]
 
@@ -297,6 +306,14 @@ class GaLoreAdamW(Optimizer):
         comp_dev = torch.device("cuda") if use_cuda else p.device
 
         grad = p.grad.to(comp_dev, non_blocking=True).float()
+
+        # Per-Layer / Per-Parameter Adaptive Gradient Norm Clamping (GPU-nativ)
+        grad_clip_norm = group.get("grad_clip_norm", 1.0)
+        if grad_clip_norm is not None and grad_clip_norm > 0:
+            g_norm = grad.norm(2)
+            if g_norm > grad_clip_norm:
+                grad.mul_(grad_clip_norm / (g_norm + 1e-6))
+
         if weight_decay != 0:
             p_comp = p.data.to(comp_dev, non_blocking=True).float()
             grad.add_(p_comp, alpha=weight_decay)
