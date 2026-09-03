@@ -15,7 +15,7 @@ import time
 import urllib.parse
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from socketserver import ThreadingMixIn
-from typing import Dict, Any
+from typing import Dict, Any, cast, Optional
 
 # Fix sys.path for background execution
 sys.path.insert(0, "/home/benjamin/Bilder")
@@ -30,7 +30,7 @@ from pipeline.web_surfer import WebSurfer
 from pipeline.self_introspection import SelfArchitectureModel
 from pipeline.model_builder_engine import ModelArchitectureSpecs, MODEL_PRESETS
 import torch.nn as nn
-from pipeline.moe_7b_model import MultiGranularMoE7BModel, RotaryEmbedding
+from pipeline.moe_7b_model import MultiGranularMoE7BModel, RotaryEmbedding, SparseMoELayer16
 from train_model import MultiGranularCausalTransformer
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -109,13 +109,15 @@ def build_8b_moe_inference_model(vocab_size: int, device: torch.device):
     model.E_proj.to(device)
     model.E_vocab.to(device)
     for ml in model.moe_layers:
-        ml.router.to(device)
-        if ml.shared_expert is not None:
-            ml.shared_expert.to(device)
-        for exp in ml.experts:
-            for child_name, child in exp.named_children():
+        moe_layer = cast(SparseMoELayer16, ml)
+        moe_layer.router.to(device)
+        if moe_layer.shared_expert is not None:
+            moe_layer.shared_expert.to(device)
+        for exp in moe_layer.experts:
+            exp_mod = cast(nn.Module, exp)
+            for child_name, child in exp_mod.named_children():
                 if isinstance(child, nn.Linear):
-                    setattr(exp, child_name, OffloadedLinear(child))
+                    setattr(exp_mod, child_name, OffloadedLinear(child))
     model.eval()
     print("✅ 8.52B MoE Inferenz-Modell erfolgreich bereitgestellt.", flush=True)
     return model
